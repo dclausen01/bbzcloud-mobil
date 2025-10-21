@@ -279,6 +279,7 @@ class _CustomAppDialogState extends ConsumerState<CustomAppDialog> {
         color: _selectedColor,
         icon: _selectedIcon,
         userId: userId,
+        orderIndex: widget.existingApp?.orderIndex ?? 999,
         createdAt: widget.existingApp?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );

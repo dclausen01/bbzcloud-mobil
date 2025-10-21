@@ -236,7 +236,3 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
-
-// Import for type checking
-import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
-import 'package:bbzcloud_mobil/data/models/custom_app.dart';

@@ -16,7 +16,7 @@ void main() {
         id: 'test',
         title: 'Test App',
         url: 'https://test.com',
-        icon: Icons.test_tube,
+        icon: Icons.star,
         color: Colors.blue,
         requiresAuth: false,
       );
@@ -65,7 +65,7 @@ void main() {
         id: 'test',
         title: 'Test App',
         url: 'https://test.com',
-        icon: Icons.test_tube,
+        icon: Icons.star,
         color: Colors.blue,
         requiresAuth: false,
       );
@@ -93,7 +93,7 @@ void main() {
         title: 'Test App',
         description: 'Test Description',
         url: 'https://test.com',
-        icon: Icons.test_tube,
+        icon: Icons.star,
         color: Colors.blue,
         requiresAuth: false,
       );
@@ -118,7 +118,7 @@ void main() {
         id: 'test',
         title: 'Test App',
         url: 'https://test.com',
-        icon: Icons.test_tube,
+        icon: Icons.star,
         color: testColor,
         requiresAuth: false,
       );
