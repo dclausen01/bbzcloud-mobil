@@ -8,6 +8,7 @@ import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/home_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/welcome_screen.dart';
 
 void main() {
   runApp(
@@ -23,6 +24,7 @@ class BBZCloudApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final isFirstLaunch = ref.watch(isFirstLaunchProvider);
 
     return MaterialApp(
       title: AppStrings.appTitle,
@@ -33,8 +35,8 @@ class BBZCloudApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       
-      // Home
-      home: const HomeScreen(),
+      // Home - Show WelcomeScreen on first launch
+      home: isFirstLaunch ? const WelcomeScreen() : const HomeScreen(),
     );
   }
 }
