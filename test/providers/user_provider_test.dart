@@ -6,6 +6,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:bbzcloud_mobil/core/constants/app_config.dart';
 import 'package:bbzcloud_mobil/data/models/user.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
@@ -13,6 +14,11 @@ import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 // Note: Tests simplified for basic functionality check
 
 void main() {
+  // Initialize sqflite for tests
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
   group('UserProvider', () {
     late ProviderContainer container;
 
