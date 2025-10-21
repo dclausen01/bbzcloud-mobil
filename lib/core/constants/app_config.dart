@@ -47,20 +47,20 @@ enum UserRole {
 }
 
 /// Theme Modes
-enum AppTheme {
+enum AppThemeMode {
   light('light', 'Hell'),
   dark('dark', 'Dunkel'),
   system('system', 'System');
 
-  const AppTheme(this.value, this.displayName);
+  const AppThemeMode(this.value, this.displayName);
 
   final String value;
   final String displayName;
 
-  static AppTheme fromString(String value) {
-    return AppTheme.values.firstWhere(
+  static AppThemeMode fromString(String value) {
+    return AppThemeMode.values.firstWhere(
       (theme) => theme.value == value,
-      orElse: () => AppTheme.system,
+      orElse: () => AppThemeMode.system,
     );
   }
 }

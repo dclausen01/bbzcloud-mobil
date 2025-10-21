@@ -272,21 +272,28 @@ class _CustomAppDialogState extends ConsumerState<CustomAppDialog> {
       final userState = ref.read(userProvider);
       final userId = userState.value?.id;
 
-      final app = CustomApp(
-        id: widget.existingApp?.id ?? '',
-        title: _titleController.text.trim(),
-        url: _urlController.text.trim(),
-        color: _selectedColor,
-        icon: _selectedIcon,
-        userId: userId,
-        orderIndex: widget.existingApp?.orderIndex ?? 999,
-        createdAt: widget.existingApp?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
+      final CustomApp app;
+      
       if (widget.existingApp != null) {
+        // Update existing app
+        app = widget.existingApp!.copyWith(
+          title: _titleController.text.trim(),
+          url: _urlController.text.trim(),
+          color: _selectedColor,
+          icon: _selectedIcon,
+          updatedAt: DateTime.now(),
+        );
         await ref.read(customAppsProvider.notifier).updateApp(app);
       } else {
+        // Create new app
+        app = CustomApp.create(
+          title: _titleController.text.trim(),
+          url: _urlController.text.trim(),
+          color: _selectedColor,
+          icon: _selectedIcon,
+          userId: userId,
+          orderIndex: 999,
+        );
         await ref.read(customAppsProvider.notifier).addApp(app);
       }
 

@@ -12,7 +12,7 @@ import 'package:bbzcloud_mobil/data/services/database_service.dart';
 
 /// Settings state
 class SettingsState {
-  final AppTheme theme;
+  final AppThemeMode theme;
   final bool isFirstLaunch;
 
   const SettingsState({
@@ -21,7 +21,7 @@ class SettingsState {
   });
 
   SettingsState copyWith({
-    AppTheme? theme,
+    AppThemeMode? theme,
     bool? isFirstLaunch,
   }) {
     return SettingsState(
@@ -50,11 +50,11 @@ class SettingsNotifier extends StateNotifier<AsyncValue<SettingsState>> {
     try {
       final settings = await _database.getAllSettings();
       
-      final themeValue = settings[StorageKeys.theme] ?? AppTheme.system.value;
+      final themeValue = settings[StorageKeys.theme] ?? AppThemeMode.system.value;
       final isFirstLaunch = settings[StorageKeys.isFirstLaunch] != 'false';
       
       state = AsyncValue.data(SettingsState(
-        theme: AppTheme.fromString(themeValue),
+        theme: AppThemeMode.fromString(themeValue),
         isFirstLaunch: isFirstLaunch,
       ));
     } catch (error, stackTrace) {
@@ -64,7 +64,7 @@ class SettingsNotifier extends StateNotifier<AsyncValue<SettingsState>> {
   }
 
   /// Set theme
-  Future<void> setTheme(AppTheme theme) async {
+  Future<void> setTheme(AppThemeMode theme) async {
     try {
       await _database.saveSetting(StorageKeys.theme, theme.value);
       
@@ -102,11 +102,11 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
   return settingsState.maybeWhen(
     data: (settings) {
       switch (settings.theme) {
-        case AppTheme.light:
+        case AppThemeMode.light:
           return ThemeMode.light;
-        case AppTheme.dark:
+        case AppThemeMode.dark:
           return ThemeMode.dark;
-        case AppTheme.system:
+        case AppThemeMode.system:
           return ThemeMode.system;
       }
     },

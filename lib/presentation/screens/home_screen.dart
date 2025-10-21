@@ -7,15 +7,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
+import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
+import 'package:bbzcloud_mobil/core/utils/route_animations.dart';
+import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
+import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/custom_app_dialog.dart';
-import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
-import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
-import 'package:bbzcloud_mobil/core/utils/route_animations.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});

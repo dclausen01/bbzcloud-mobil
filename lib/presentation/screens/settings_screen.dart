@@ -99,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildThemeSection(
     BuildContext context,
     WidgetRef ref,
-    AppTheme currentTheme,
+    AppThemeMode currentTheme,
   ) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -113,10 +113,10 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          RadioListTile<AppTheme>(
+          RadioListTile<AppThemeMode>(
             title: const Text(AppStrings.themeLight),
             subtitle: const Text('Helles Design'),
-            value: AppTheme.light,
+            value: AppThemeMode.light,
             groupValue: currentTheme,
             onChanged: (value) {
               if (value != null) {
@@ -124,10 +124,10 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
-          RadioListTile<AppTheme>(
+          RadioListTile<AppThemeMode>(
             title: const Text(AppStrings.themeDark),
             subtitle: const Text('Dunkles Design'),
-            value: AppTheme.dark,
+            value: AppThemeMode.dark,
             groupValue: currentTheme,
             onChanged: (value) {
               if (value != null) {
@@ -135,10 +135,10 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
-          RadioListTile<AppTheme>(
+          RadioListTile<AppThemeMode>(
             title: const Text(AppStrings.themeSystem),
             subtitle: const Text('Folgt Systemeinstellungen'),
-            value: AppTheme.system,
+            value: AppThemeMode.system,
             groupValue: currentTheme,
             onChanged: (value) {
               if (value != null) {
