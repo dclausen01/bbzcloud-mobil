@@ -5,7 +5,7 @@
 /// @version 0.1.0
 
 import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:bbzcloud_mobil/core/constants/app_config.dart';
 import 'package:bbzcloud_mobil/core/exceptions/app_exceptions.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
