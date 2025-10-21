@@ -12,7 +12,21 @@ import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 
 /// Custom apps provider
 final customAppsProvider = StateNotifierProvider<CustomAppsNotifier, AsyncValue<List<CustomApp>>>((ref) {
-  return CustomAppsNotifier(ref);
+  final notifier = CustomAppsNotifier(ref);
+  
+  // Watch for user changes and reload apps
+  ref.listen<AsyncValue<User?>>(
+    userProvider,
+    (previous, next) {
+      next.whenData((user) {
+        if (previous?.value?.id != user?.id) {
+          notifier.reload();
+        }
+      });
+    },
+  );
+  
+  return notifier;
 });
 
 class CustomAppsNotifier extends StateNotifier<AsyncValue<List<CustomApp>>> {
