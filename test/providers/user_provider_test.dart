@@ -26,16 +26,24 @@ void main() {
       container = ProviderContainer();
     });
 
-    tearDown(() {
+    tearDown(() async {
+      // Wait a bit for async operations to complete
+      await Future.delayed(const Duration(milliseconds: 100));
       container.dispose();
     });
 
-    test('initial state is loading', () {
+    test('initial state is loading', () async {
       final state = container.read(userProvider);
       expect(state, isA<AsyncLoading>());
+      
+      // Wait for initial load to complete
+      await Future.delayed(const Duration(milliseconds: 50));
     });
 
-    test('isLoggedInProvider returns false when no user', () {
+    test('isLoggedInProvider returns false when no user', () async {
+      // Wait for provider to initialize
+      await Future.delayed(const Duration(milliseconds: 50));
+      
       final isLoggedIn = container.read(isLoggedInProvider);
       expect(isLoggedIn, false);
     });
