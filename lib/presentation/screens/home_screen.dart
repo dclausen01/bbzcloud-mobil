@@ -15,6 +15,7 @@ import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/custom_app_dialog.dart';
 import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
+import 'package:bbzcloud_mobil/core/utils/route_animations.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -33,9 +34,7 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
+                RouteAnimations.slideFromRight(const SettingsScreen()),
               );
             },
           ),
@@ -224,11 +223,11 @@ class HomeScreen extends ConsumerWidget {
       return;
     }
 
-    // Open in WebView
+    // Open in WebView with animation
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => WebViewScreen(
+      RouteAnimations.slideFromBottom(
+        WebViewScreen(
           title: title,
           url: url,
           requiresAuth: requiresAuth,
