@@ -3,6 +3,7 @@
 /// @version 0.1.0
 
 import 'package:bbzcloud_mobil/core/constants/app_config.dart';
+import 'package:bbzcloud_mobil/core/utils/validators.dart';
 
 class User {
   final int? id;
@@ -11,13 +12,16 @@ class User {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  const User({
+  User({
     this.id,
     required this.email,
     required this.role,
     this.createdAt,
     this.updatedAt,
-  });
+  }) {
+    // Validate on construction
+    Validators.validateEmail(email);
+  }
 
   /// Create User from database map
   factory User.fromMap(Map<String, dynamic> map) {

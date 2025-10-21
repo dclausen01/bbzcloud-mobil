@@ -5,6 +5,7 @@
 /// @version 0.1.0
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/models/user.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
 
@@ -34,10 +35,14 @@ class UserNotifier extends StateNotifier<AsyncValue<User?>> {
 
   /// Save or update user
   Future<void> saveUser(User user) async {
+    state = const AsyncValue.loading();
     try {
       await _database.saveUser(user);
-      state = AsyncValue.data(user);
+      // Reload from database to ensure consistency
+      await _loadUser();
+      logger.info('User saved and reloaded successfully');
     } catch (error, stackTrace) {
+      logger.error('Failed to save user', error, stackTrace);
       state = AsyncValue.error(error, stackTrace);
     }
   }

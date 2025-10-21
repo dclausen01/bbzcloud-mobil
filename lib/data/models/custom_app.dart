@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:bbzcloud_mobil/core/utils/validators.dart';
 
 class CustomApp {
   final String id;
@@ -16,7 +17,7 @@ class CustomApp {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  const CustomApp({
+  CustomApp({
     required this.id,
     required this.title,
     required this.url,
@@ -26,7 +27,11 @@ class CustomApp {
     required this.orderIndex,
     this.createdAt,
     this.updatedAt,
-  });
+  }) {
+    // Validate on construction
+    Validators.validateString(title, 'title', maxLength: 100);
+    Validators.validateUrl(url);
+  }
 
   /// Create CustomApp from database map
   factory CustomApp.fromMap(Map<String, dynamic> map) {

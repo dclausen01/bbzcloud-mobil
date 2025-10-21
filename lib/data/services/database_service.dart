@@ -7,6 +7,8 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:bbzcloud_mobil/core/constants/app_config.dart';
+import 'package:bbzcloud_mobil/core/exceptions/app_exceptions.dart';
+import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/models/user.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 
@@ -115,34 +117,44 @@ class DatabaseService {
 
   /// Insert or update user
   Future<int> saveUser(User user) async {
-    final db = await database;
-    
-    // Check if user exists
-    final existing = await db.query(
-      'user_profile',
-      where: 'email = ?',
-      whereArgs: [user.email],
-    );
+    try {
+      final db = await database;
+      
+      return await db.transaction((txn) async {
+        // Check if user exists
+        final existing = await txn.query(
+          'user_profile',
+          where: 'email = ?',
+          whereArgs: [user.email],
+        );
 
-    if (existing.isNotEmpty) {
-      // Update existing user
-      await db.update(
-        'user_profile',
-        {
-          ...user.toMap(),
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        where: 'email = ?',
-        whereArgs: [user.email],
-      );
-      return existing.first['id'] as int;
-    } else {
-      // Insert new user
-      return await db.insert('user_profile', {
-        ...user.toMap(),
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+        if (existing.isNotEmpty) {
+          // Update existing user
+          await txn.update(
+            'user_profile',
+            {
+              ...user.toMap(),
+              'updated_at': DateTime.now().toIso8601String(),
+            },
+            where: 'email = ?',
+            whereArgs: [user.email],
+          );
+          logger.info('User updated: ${user.email}');
+          return existing.first['id'] as int;
+        } else {
+          // Insert new user
+          final id = await txn.insert('user_profile', {
+            ...user.toMap(),
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+          logger.info('User created: ${user.email} (ID: $id)');
+          return id;
+        }
       });
+    } catch (e, stackTrace) {
+      logger.error('Error saving user: ${user.email}', e, stackTrace);
+      throw DatabaseException.transaction('Failed to save user: $e');
     }
   }
 
@@ -334,24 +346,34 @@ class DatabaseService {
     );
   }
 
-  /// Batch update app orders
+  /// Batch update app orders with transaction safety
   Future<void> updateAppOrders(int userId, Map<String, int> orders) async {
-    final db = await database;
-    final batch = db.batch();
+    try {
+      final db = await database;
+      
+      await db.transaction((txn) async {
+        final batch = txn.batch();
 
-    for (var entry in orders.entries) {
-      batch.insert(
-        'app_order',
-        {
-          'app_id': entry.key,
-          'user_id': userId,
-          'order_index': entry.value,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+        for (var entry in orders.entries) {
+          batch.insert(
+            'app_order',
+            {
+              'app_id': entry.key,
+              'user_id': userId,
+              'order_index': entry.value,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+
+        await batch.commit(noResult: true);
+      });
+      
+      logger.info('Updated ${orders.length} app orders for user $userId');
+    } catch (e, stackTrace) {
+      logger.error('Error updating app orders for user $userId', e, stackTrace);
+      throw DatabaseException.transaction('Failed to update app orders: $e');
     }
-
-    await batch.commit(noResult: true);
   }
 
   // ============================================================================
