@@ -12,6 +12,7 @@ import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/custom_app_dialog.dart';
 import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 
@@ -196,9 +197,9 @@ class HomeScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Add custom app
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add custom app coming soon')),
+          showDialog(
+            context: context,
+            builder: (context) => const CustomAppDialog(),
           );
         },
         child: const Icon(Icons.add),

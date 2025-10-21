@@ -1,0 +1,86 @@
+name: Build Android
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: 'stable'
+          cache: true
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Analyze code
+        run: flutter analyze
+      
+      - name: Run tests
+        run: flutter test
+        continue-on-error: true
+      
+      - name: Build APK
+        run: flutter build apk --release
+      
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+      
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+      
+      - name: Upload App Bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+      
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Create Release Info
+        run: |
+          echo "## Build Information" > release-info.txt
+          echo "" >> release-info.txt
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> release-info.txt
+          echo "- **Branch**: ${{ github.ref_name }}" >> release-info.txt
+          echo "- **Commit**: ${{ github.sha }}" >> release-info.txt
+          echo "- **Date**: $(date +'%Y-%m-%d %H:%M:%S')" >> release-info.txt
+          echo "" >> release-info.txt
+          echo "## Download" >> release-info.txt
+          echo "" >> release-info.txt
+          echo "Download the artifacts from the GitHub Actions run." >> release-info.txt
+      
+      - name: Upload Release Info
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-info
+          path: release-info.txt
+          retention-days: 30

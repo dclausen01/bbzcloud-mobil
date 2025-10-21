@@ -1,176 +1,229 @@
-# BBZCloud Mobile (Flutter)
+# BBZCloud Mobile
 
-Eine moderne mobile App für die BBZ Cloud - entwickelt mit Flutter für iOS und Android.
+Eine moderne Flutter-App für den Zugriff auf alle digitalen Dienste des BBZ Rendsburg-Eckernförde.
 
-## 📱 Über das Projekt
+## 📱 Features
 
-BBZCloud Mobile ist eine Flutter-Neuimplementierung der bestehenden Ionic/Capacitor-App mit folgenden Verbesserungen:
+### ✅ Implementiert
 
-- **Native Performance** - Keine WebView-Abhängigkeiten für die UI
-- **Verbessertes Download-Management** - Native Download-Handler ohne JavaScript-Hacks
-- **Perfektes Keyboard-Handling** - Out-of-the-box Android/iOS Keyboard-Support
-- **Modernes Design** - Material Design 3 mit Custom Theme
-- **WebView-Integration** - Für embedded Web-Apps mit Auto-Login
+- **Onboarding & Setup**
+  - Welcome Screen für neuen Benutzer
+  - Email & Rollen-Auswahl (Schüler/Lehrkraft)
+  - Optional: Passwort-Speicherung für Auto-Login
+  - Auto-Erkennung der Rolle anhand der Email-Domain
 
-## 🎯 Features
+- **App-Verwaltung**
+  - 10 vorkonfigurierte BBZ-Apps
+  - Rollenbasierte Filterung (verschiedene Apps für Schüler/Lehrkräfte)
+  - Farbige App-Karten mit Gradient-Design
+  - 2-spaltiges App-Grid für optimale Übersicht
 
-### Core Features
-- ✅ App-Portal für BBZ Cloud Dienste
-- ✅ WebView-Integration mit JavaScript-Injection
-- ✅ Zentrale Credential-Verwaltung
-- ✅ Auto-Login in Web-Apps
-- ✅ Native Download-Handler mit Progress
-- ✅ Todo-System
-- ✅ Custom Apps Management
-- ✅ Theme-Support (Light/Dark)
-- ✅ Benutzerrollen (Lehrer/Schüler)
+- **WebView Integration**
+  - Vollständiger InAppWebView mit Navigation
+  - JavaScript Auto-Login (automatische Anmeldung)
+  - Back/Forward/Refresh Navigation
+  - Progress Bar für Ladefortschritt
+  - Download Handler
 
-### UI/UX
-- Seitliches Drawer-Panel mit allen Apps
-- Floating Action Button (immer sichtbar)
-- Farbige App-Kacheln
-- Smooth Animations
-- Material Design 3
+- **Navigation**
+  - Navigation Drawer mit App-Liste
+  - Settings Screen
+  - User Profile Display
+  - Intuitive Navigation zwischen Screens
+
+- **Settings & Personalisierung**
+  - Theme-Auswahl (Hell/Dunkel/System)
+  - Sofortige Theme-Anwendung
+  - Account-Verwaltung
+  - App-Reset Funktion
+  - About-Informationen
+
+- **Sicherheit & Datenschutz**
+  - Verschlüsselte Passwort-Speicherung (flutter_secure_storage)
+  - SQLite Datenbank für lokale Daten
+  - Keine Cloud-Synchronisation
+  - Alle Daten bleiben auf dem Gerät
 
 ## 🏗️ Architektur
 
+### Clean Architecture mit MVVM
+
 ```
 lib/
-├── core/               # Konstanten, Theme, Utils
-├── data/              # Models, Repositories, Services
-├── presentation/      # Providers, Screens, Widgets
-└── routes/            # App-Routing
+├── core/
+│   ├── constants/     # App-Konfiguration, Strings, Apps
+│   └── theme/         # Material Design 3 Theme
+├── data/
+│   ├── models/        # User, Credentials, CustomApp
+│   └── services/      # Database, Credentials
+├── presentation/
+│   ├── providers/     # Riverpod State Management
+│   ├── screens/       # UI Screens
+│   └── widgets/       # Reusable Widgets
+└── main.dart
 ```
 
-### Technologie-Stack
-- **Framework:** Flutter 3.35.6+ (Dart 3+)
-- **State Management:** Riverpod
-- **WebView:** flutter_inappwebview
-- **Datenbank:** sqflite (SQLite)
-- **Credentials:** flutter_secure_storage
-- **UI:** Material Design 3
+### Tech Stack
+
+- **Framework**: Flutter 3.35.6
+- **Language**: Dart 3.x
+- **State Management**: Riverpod
+- **Database**: SQLite (sqflite)
+- **Secure Storage**: flutter_secure_storage
+- **WebView**: flutter_inappwebview
+- **UI**: Material Design 3
 
 ## 🚀 Getting Started
 
 ### Voraussetzungen
+
 - Flutter SDK 3.35.6 oder höher
-- Android Studio (für Android-Entwicklung)
-- Xcode (für iOS-Entwicklung, nur auf macOS)
+- Android Studio / VS Code
+- Android SDK (für Android-Builds)
+- Xcode (für iOS-Builds, nur macOS)
 
 ### Installation
 
+1. Repository klonen:
 ```bash
-# Repository klonen
 git clone https://github.com/dclausen01/bbzcloud-mobil.git
 cd bbzcloud-mobil
-
-# Dependencies installieren
-flutter pub get
-
-# App starten (Android)
-flutter run
 ```
 
-### Entwicklung
+2. Dependencies installieren:
+```bash
+flutter pub get
+```
+
+3. App starten:
+```bash
+# Android
+flutter run
+
+# iOS (nur macOS)
+flutter run -d ios
+
+# Web
+flutter run -d chrome
+```
+
+## 🔨 Build
+
+### Android APK
 
 ```bash
-# Flutter Doctor ausführen
-flutter doctor
-
-# Android Emulator starten
-flutter emulators --launch <emulator_id>
-
-# Hot Reload während Entwicklung
-# Drücke 'r' im Terminal für Hot Reload
-# Drücke 'R' für Hot Restart
+flutter build apk --release
 ```
 
-## 📦 Packages
+Die APK befindet sich dann in: `build/app/outputs/flutter-apk/app-release.apk`
 
-Hauptabhängigkeiten:
-- `flutter_riverpod` - State Management
-- `flutter_inappwebview` - WebView mit JavaScript-Injection
-- `sqflite` - SQLite Datenbank
-- `flutter_secure_storage` - Sichere Credential-Speicherung
-- `path_provider` - Dateisystem-Zugriff
+### Android App Bundle (für Google Play)
 
-## 🔄 Migration von Ionic/Capacitor
+```bash
+flutter build appbundle --release
+```
 
-Diese App ersetzt die bestehende Ionic/Capacitor-App mit folgenden Vorteilen:
+### iOS
 
-| Feature | Ionic/Capacitor | Flutter |
-|---------|----------------|---------|
-| Keyboard-Handling | Problematisch, erfordert Plugins | Native, funktioniert out-of-the-box |
-| Download-Management | JavaScript-Hacks + Native Listener | Native Events, zuverlässig |
-| Performance | WebView-basiert | Native Rendering |
-| UI-Konsistenz | Manchmal inkonsistent | Material Design 3 |
-| Code-Wartung | TypeScript + Plugins | Dart, typsicher |
+```bash
+flutter build ios --release
+```
 
-## 🎨 Design-System
+## 📋 Verfügbare Apps
 
-### Farben
-- **Primary:** Deep Blue (#1976D2)
-- **Secondary:** Teal (#00897B)
-- **Surface:** Dynamic (basierend auf Theme)
+Die App bietet Zugriff auf folgende BBZ-Dienste:
 
-### App-Buttons
-Jede App hat ihre eigene Farbe im Drawer-Panel (ähnlich zur Desktop-App).
+1. **IServ** - Schulplattform
+2. **Moodle** - Lernplattform
+3. **Untis** - Stundenplan
+4. **BigBlueButton** - Videokonferenzen
+5. **Nextcloud** - Cloud-Speicher
+6. **OpenOlat** - E-Learning
+7. **WebMail** - E-Mail
+8. **Mahara** - E-Portfolio
+9. **Wiki** - Wissensdatenbank
+10. **HPI Schul-Cloud** - Cloud-Plattform
 
-## 📝 Entwicklungs-Roadmap
+*Hinweis: Einige Apps sind nur für Lehrkräfte sichtbar.*
 
-### Phase 1: Foundation ✅
-- [x] Flutter-Projekt Setup
-- [x] Git-Repository eingerichtet
-- [ ] Basis-Architektur
-- [ ] Theme & Design System
-- [ ] Navigation
+## 🔐 Auto-Login
 
-### Phase 2: Core Features (Woche 3-4)
-- [ ] User Management
-- [ ] App Configuration
-- [ ] Custom Drawer
-- [ ] Floating Action Button
+Die App unterstützt automatisches Einloggen in Apps:
 
-### Phase 3: WebView Integration (Woche 5-6)
-- [ ] InAppWebView Setup
-- [ ] JavaScript Injection
-- [ ] Auto-Login Mechanismus
+1. Bei der Ersteinrichtung Email und Passwort eingeben
+2. Passwort wird verschlüsselt gespeichert
+3. Beim Öffnen einer App werden die Credentials automatisch eingefüllt
+4. Funktioniert mit allen Standard-Login-Formularen
 
-### Phase 4: Downloads & Advanced (Woche 7-8)
-- [ ] Native Download Handler
-- [ ] Progress Tracking
-- [ ] File Management
+## 🎨 Theming
 
-### Phase 5: Additional Features (Woche 9-10)
-- [ ] Todo-System
-- [ ] Custom Apps Management
-- [ ] Settings Panel
+Die App unterstützt drei Theme-Modi:
 
-### Phase 6: Polish & Testing (Woche 11-12)
-- [ ] Animations
-- [ ] Error Handling
-- [ ] Performance
-- [ ] Testing
+- **Hell**: Helles Design
+- **Dunkel**: Dunkles Design
+- **System**: Folgt den Systemeinstellungen
+
+Theme kann jederzeit in den Einstellungen geändert werden.
+
+## 📱 Unterstützte Plattformen
+
+- ✅ Android
+- ✅ iOS
+- ✅ Web (experimentell)
+- ✅ macOS (experimentell)
+- ✅ Linux (experimentell)
+- ✅ Windows (experimentell)
 
 ## 🤝 Contributing
 
-Dieses Projekt wird aktiv entwickelt. Feedback und Verbesserungsvorschläge sind willkommen!
+Contributions sind willkommen! Bitte erstelle einen Pull Request oder öffne ein Issue.
 
-## 📄 Lizenz
+### Development Setup
 
-[Lizenz hier einfügen]
+1. Fork das Repository
+2. Erstelle einen Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit deine Änderungen (`git commit -m 'Add some AmazingFeature'`)
+4. Push zum Branch (`git push origin feature/AmazingFeature`)
+5. Öffne einen Pull Request
 
-## 👤 Autor
+## 📄 License
 
-Dennis Clausen - [GitHub](https://github.com/dclausen01)
+Dieses Projekt ist unter der MIT License lizenziert - siehe [LICENSE](LICENSE) Datei für Details.
 
-## 🔗 Verwandte Projekte
+## 👥 Team
 
-- [BBZCloud Mobile (Ionic)](https://github.com/dclausen01/bbzcloud-mobile) - Original Ionic/Capacitor Version
-- [BBZCloud Desktop](https://github.com/dclausen01/bbzcloud-2) - Electron Desktop-App
+- **Development**: BBZ Cloud Team
+- **Design**: Material Design 3
+- **Institution**: BBZ Rendsburg-Eckernförde
+
+## 📞 Support
+
+Bei Fragen oder Problemen:
+- Issue erstellen auf GitHub
+- Email: support@bbz-rd-eck.de
+- Website: https://www.bbz-rd-eck.de
+
+## 🗺️ Roadmap
+
+### Geplante Features
+
+- [ ] Custom Apps Management (Hinzufügen/Bearbeiten eigener Apps)
+- [ ] Favoriten-System
+- [ ] App-Suche
+- [ ] Browser-Verlauf
+- [ ] Download Manager
+- [ ] Push-Benachrichtigungen
+- [ ] Offline-Modus
+- [ ] App-Reihenfolge anpassen
+- [ ] Mehrsprachigkeit (DE/EN)
+
+## 📊 Status
+
+![Build Status](https://github.com/dclausen01/bbzcloud-mobil/workflows/Build/badge.svg)
+![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Flutter](https://img.shields.io/badge/flutter-3.35.6-blue.svg)
+![Platform](https://img.shields.io/badge/platform-android%20%7C%20ios-green.svg)
 
 ---
 
-**Status:** 🚧 In aktiver Entwicklung
-
-**Version:** 0.1.0 (Alpha)
+Made with ❤️ by BBZ Rendsburg-Eckernförde
