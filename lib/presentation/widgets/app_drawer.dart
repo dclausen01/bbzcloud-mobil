@@ -11,6 +11,7 @@ import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 
@@ -129,17 +130,23 @@ class AppDrawer extends ConsumerWidget {
 
   Widget _buildAppTile(BuildContext context, dynamic app) {
     final String title;
+    final String url;
     final Color color;
     final IconData icon;
+    final bool requiresAuth;
 
     if (app is AppItem) {
       title = app.title;
+      url = app.url;
       color = app.color;
       icon = app.icon;
+      requiresAuth = app.requiresAuth;
     } else if (app is CustomApp) {
       title = app.title;
+      url = app.url;
       color = app.color;
       icon = app.icon;
+      requiresAuth = false;
     } else {
       return const SizedBox.shrink();
     }
@@ -161,11 +168,15 @@ class AppDrawer extends ConsumerWidget {
       title: Text(title),
       onTap: () {
         Navigator.pop(context); // Close drawer
-        // TODO: Open app
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Opening $title...'),
-            duration: const Duration(seconds: 1),
+        // Open in WebView
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WebViewScreen(
+              title: title,
+              url: url,
+              requiresAuth: requiresAuth,
+            ),
           ),
         );
       },

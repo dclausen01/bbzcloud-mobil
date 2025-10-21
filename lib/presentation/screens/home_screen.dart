@@ -13,6 +13,7 @@ import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
 import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -206,22 +207,33 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _handleAppTap(BuildContext context, dynamic app) {
-    // TODO: Open app in WebView
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening ${_getAppTitle(app)}...'),
-        duration: const Duration(seconds: 1),
+    String title;
+    String url;
+    bool requiresAuth = false;
+
+    if (app is AppItem) {
+      title = app.title;
+      url = app.url;
+      requiresAuth = app.requiresAuth;
+    } else if (app is CustomApp) {
+      title = app.title;
+      url = app.url;
+      requiresAuth = false;
+    } else {
+      return;
+    }
+
+    // Open in WebView
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebViewScreen(
+          title: title,
+          url: url,
+          requiresAuth: requiresAuth,
+        ),
       ),
     );
-  }
-
-  String _getAppTitle(dynamic app) {
-    if (app is AppItem) {
-      return app.title;
-    } else if (app is CustomApp) {
-      return app.title;
-    }
-    return 'App';
   }
 }
 
