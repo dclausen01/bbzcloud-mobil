@@ -11,6 +11,8 @@ import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
+import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -27,14 +29,17 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // TODO: Navigate to settings
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
               );
             },
           ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: userState.when(
         data: (user) {
           if (user == null) {
