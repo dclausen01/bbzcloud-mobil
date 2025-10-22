@@ -96,22 +96,20 @@ class DownloadService {
       // Try to extract filename from Content-Disposition header
       final contentDisposition = response.headers['content-disposition'];
       if (contentDisposition != null) {
-        final filenameMatch = RegExp(r"filename[^;=\n]*=((['\"]).*?\2|[^;\n]*)")
-            .firstMatch(contentDisposition);
-        if (filenameMatch != null && filenameMatch.group(1) != null) {
-          String extractedFilename = filenameMatch.group(1)!.replaceAll(RegExp(r"['\"]"), '');
-          
-          // Handle UTF-8 encoded filenames
-          if (extractedFilename.contains('UTF-8')) {
-            final utf8Match = RegExp(r"filename\*=UTF-8''([^;\n]*)")
-                .firstMatch(contentDisposition);
-            if (utf8Match != null && utf8Match.group(1) != null) {
-              extractedFilename = Uri.decodeComponent(utf8Match.group(1)!);
-            }
+        // First try UTF-8 encoded filename
+        final utf8Pattern = RegExp(r"filename\*=UTF-8''(.+?)(?:;|$)");
+        final utf8Match = utf8Pattern.firstMatch(contentDisposition);
+        if (utf8Match != null && utf8Match.group(1) != null) {
+          filename = Uri.decodeComponent(utf8Match.group(1)!);
+          logger.info('Filename from UTF-8 Content-Disposition: $filename');
+        } else {
+          // Fallback to regular filename with or without quotes
+          final filenamePattern = RegExp(r'filename=["']?([^"';]+)["']?');
+          final filenameMatch = filenamePattern.firstMatch(contentDisposition);
+          if (filenameMatch != null && filenameMatch.group(1) != null) {
+            filename = filenameMatch.group(1)!.trim();
+            logger.info('Filename from Content-Disposition: $filename');
           }
-          
-          filename = extractedFilename;
-          logger.info('Filename from Content-Disposition: $filename');
         }
       }
 
