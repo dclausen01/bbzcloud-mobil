@@ -289,25 +289,29 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
         functionBody: '''
           return new Promise((resolve, reject) => {
             try {
-              const email = arguments[0];
+              const username = arguments[0];
               const password = arguments[1];
               
               function fillLoginForm() {
-                const emailField = document.querySelector(
-                  'input[type="email"], input[name*="email"], input[name*="user"], input[id*="email"], input[id*="user"]'
+                // Find username field (can be email, user, or text input)
+                const usernameField = document.querySelector(
+                  'input[type="text"]:not([type="password"]), input[type="email"], input[name*="email"], input[name*="user"], input[name*="login"], input[id*="email"], input[id*="user"], input[id*="login"]'
                 );
                 
-                if (emailField && emailField.value === '' && email) {
-                  emailField.value = email;
-                  emailField.dispatchEvent(new Event('input', { bubbles: true }));
-                  emailField.dispatchEvent(new Event('change', { bubbles: true }));
+                if (usernameField && usernameField.value === '' && username) {
+                  usernameField.value = username;
+                  usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+                  usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+                  usernameField.dispatchEvent(new Event('blur', { bubbles: true }));
                 }
                 
+                // Find password field
                 const passwordField = document.querySelector('input[type="password"]');
                 if (passwordField && passwordField.value === '' && password) {
                   passwordField.value = password;
                   passwordField.dispatchEvent(new Event('input', { bubbles: true }));
                   passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+                  passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
                 }
                 
                 resolve({ filled: true });
@@ -324,7 +328,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
           });
         ''',
         arguments: {
-          'email': credentials.email,
+          'username': credentials.email,
           'password': credentials.password ?? '',
         },
       );
