@@ -173,14 +173,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         index: index,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: AppCard(
-                            app: app,
-                            onTap: () {},
-                            isEditMode: true,
-                            isVisible: isVisible,
-                            onToggleVisibility: () {
-                              ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
-                            },
+                          child: SizedBox(
+                            height: 200, // Fixed height for edit mode cards
+                            child: AppCard(
+                              app: app,
+                              onTap: () {},
+                              isEditMode: true,
+                              isVisible: isVisible,
+                              onToggleVisibility: () {
+                                ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
+                              },
+                            ),
                           ),
                         ),
                       );

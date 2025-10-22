@@ -354,14 +354,20 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
           _webuntisLoginTriggered = true;
         }
       } else if (!isLoginPage && _webuntisLoginTriggered) {
-        // Phase 3: After successful login, close overlay
-        logger.info('WebUntis: Starting Phase 3 (close overlay after login)');
+        // Phase 2 & 3: After successful login
+        logger.info('WebUntis: Starting Phase 2 & 3 (close overlays)');
         await Future.delayed(const Duration(milliseconds: 1000));
         
-        // Run Phase 2 injection (overlay closing)
+        // Run Phase 2 injection (immediate overlay closing)
         final phase2Script = InjectionScripts.webuntisPhase2Injection;
         await controller.evaluateJavascript(source: phase2Script.js);
-        logger.info('WebUntis: Phase 3 completed');
+        logger.info('WebUntis: Phase 2 completed');
+        
+        // Run Phase 3 injection (monitor for overlays after interaction)
+        await Future.delayed(const Duration(milliseconds: 500));
+        final phase3Script = InjectionScripts.webuntisPhase3Injection;
+        await controller.evaluateJavascript(source: phase3Script.js);
+        logger.info('WebUntis: Phase 3 monitoring started');
         
         // Reset flags for potential future logins
         _webuntisLoginTriggered = false;

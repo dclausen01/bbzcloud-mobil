@@ -160,6 +160,105 @@ class InjectionScripts {
     description: 'Phase 2: Close overlay after login',
   );
 
+  /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
+  static const InjectionScript webuntisPhase3Injection = InjectionScript(
+    js: '''
+      (function() {
+        console.log('WebUntis Phase 3: Starting interaction monitor');
+        
+        let interactionDetected = false;
+        let monitoringActive = true;
+        
+        // Function to detect and close overlays
+        function detectAndCloseOverlay() {
+          if (!monitoringActive) return;
+          
+          try {
+            // Look for close buttons that may have appeared
+            const closeButtons = document.querySelectorAll(
+              'button[class*="close"], button[aria-label*="close"], button[aria-label*="schließen"], ' +
+              'button[aria-label*="Close"], [class*="close-button"], [class*="closeButton"], ' +
+              'button:has(svg[class*="close"]), button:has([class*="icon-close"]), ' +
+              'button[title*="close" i], button[title*="schließen" i], ' +
+              '[role="button"]:has(svg[class*="close"])'
+            );
+            
+            for (const button of closeButtons) {
+              // Check if button is in a visible modal/dialog/overlay
+              const parent = button.closest('[role="dialog"], [role="alertdialog"], [class*="modal"], [class*="overlay"], [class*="dialog"], [class*="popup"]');
+              if (parent) {
+                const style = window.getComputedStyle(parent);
+                if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                  console.log('WebUntis Phase 3: Found and clicking close button after interaction');
+                  button.click();
+                  
+                  // Stop monitoring after successful close
+                  setTimeout(() => {
+                    monitoringActive = false;
+                    console.log('WebUntis Phase 3: Monitoring stopped');
+                  }, 1000);
+                  
+                  return true;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('WebUntis Phase 3 error:', error);
+          }
+          return false;
+        }
+        
+        // Listen for user interactions (click, touch, scroll)
+        const interactionEvents = ['click', 'touchstart', 'scroll', 'keydown'];
+        
+        function handleInteraction() {
+          if (!interactionDetected) {
+            interactionDetected = true;
+            console.log('WebUntis Phase 3: User interaction detected, watching for overlays');
+            
+            // After interaction, periodically check for overlays
+            let checkCount = 0;
+            const maxChecks = 10;
+            
+            const intervalId = setInterval(() => {
+              checkCount++;
+              
+              if (detectAndCloseOverlay() || checkCount >= maxChecks || !monitoringActive) {
+                clearInterval(intervalId);
+                console.log('WebUntis Phase 3: Stopped checking (count: ' + checkCount + ')');
+              }
+            }, 1000);
+          }
+        }
+        
+        // Add event listeners
+        interactionEvents.forEach(event => {
+          document.addEventListener(event, handleInteraction, { once: false, passive: true });
+        });
+        
+        // Also check periodically in case overlay appears without interaction
+        let periodicCheckCount = 0;
+        const periodicInterval = setInterval(() => {
+          periodicCheckCount++;
+          
+          if (detectAndCloseOverlay() || periodicCheckCount >= 20 || !monitoringActive) {
+            clearInterval(periodicInterval);
+          }
+        }, 2000);
+        
+        // Stop monitoring after 60 seconds
+        setTimeout(() => {
+          monitoringActive = false;
+          console.log('WebUntis Phase 3: Monitoring timeout reached');
+        }, 60000);
+        
+        console.log('WebUntis Phase 3: Monitoring active');
+      })();
+    ''',
+    delay: 0,
+    description: 'Phase 3: Monitor for overlays after user interaction',
+  );
+
   /// WebUntis credential injection (Phase 2 will be triggered separately after login)
   static String getWebuntisInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
@@ -170,13 +269,33 @@ class InjectionScripts {
         try {
           console.log('WebUntis: Starting credential injection');
           
-          // Find and fill username field
-          const usernameField = document.querySelector('input[type="text"][name="school"], input[id*="username"], input[id*="user"]');
+          // Find and fill username field with multiple selectors
+          const usernameSelectors = [
+            'input[type="text"]:not([type="password"])',
+            'input[name="school"]',
+            'input[id*="username"]',
+            'input[id*="user"]',
+            'input[name*="user"]',
+            'input[placeholder*="user" i]',
+            'input[placeholder*="name" i]'
+          ];
+          
+          let usernameField = null;
+          for (const selector of usernameSelectors) {
+            usernameField = document.querySelector(selector);
+            if (usernameField && usernameField.offsetParent !== null && usernameField.type !== 'password') {
+              break;
+            }
+          }
+          
           if (usernameField && usernameField.value === '') {
             usernameField.value = "$escapedEmail";
             usernameField.dispatchEvent(new Event('input', { bubbles: true }));
             usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+            usernameField.dispatchEvent(new Event('blur', { bubbles: true }));
             console.log('WebUntis: Username filled');
+          } else {
+            console.log('WebUntis: Username field not found or already filled');
           }
           
           // Find and fill password field
@@ -185,7 +304,10 @@ class InjectionScripts {
             passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
             console.log('WebUntis: Password filled');
+          } else {
+            console.log('WebUntis: Password field not found or already filled');
           }
           
           // Auto-click login button if both fields are filled
@@ -220,7 +342,7 @@ class InjectionScripts {
           
           // Apply scroll fix
           const style = document.createElement('style');
-          style.textContent = `
+          style.textContent = \`
             [class*="outer-scroller"],
             [class*="navigation-item-wrapper"],
             [class*="channel-list"],
@@ -237,9 +359,13 @@ class InjectionScripts {
               overscroll-behavior: contain !important;
               touch-action: pan-y !important;
             }
-          `;
+          \`;
           document.head.appendChild(style);
           console.log('schul.cloud: Scroll fix applied');
+          
+          // Store credentials as constants to avoid event object issues
+          const EMAIL_VALUE = "$escapedEmail";
+          const PASSWORD_VALUE = "$escapedPassword";
           
           // Wait for Angular to load
           function attemptFill() {
@@ -267,13 +393,23 @@ class InjectionScripts {
             }
             
             if (emailField && emailField.value === '') {
-              emailField.value = "$escapedEmail";
-              emailField.dispatchEvent(new Event('input', { bubbles: true }));
-              emailField.dispatchEvent(new Event('change', { bubbles: true }));
-              emailField.dispatchEvent(new Event('blur', { bubbles: true }));
+              // Set value directly from constant, not from event
+              emailField.value = EMAIL_VALUE;
+              // Create proper events
+              const inputEvent = new Event('input', { bubbles: true });
+              const changeEvent = new Event('change', { bubbles: true });
+              const blurEvent = new Event('blur', { bubbles: true });
+              
+              emailField.dispatchEvent(inputEvent);
+              emailField.dispatchEvent(changeEvent);
+              emailField.dispatchEvent(blurEvent);
+              
               // Trigger Angular events
-              emailField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
-              console.log('schul.cloud: Email filled');
+              try {
+                emailField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
+              } catch (e) {}
+              
+              console.log('schul.cloud: Email filled with:', EMAIL_VALUE);
             }
             
             // Find and fill password field
@@ -292,12 +428,22 @@ class InjectionScripts {
             }
             
             if (passwordField && passwordField.value === '') {
-              passwordField.value = "$escapedPassword";
-              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-              passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-              passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
+              // Set value directly from constant, not from event
+              passwordField.value = PASSWORD_VALUE;
+              // Create proper events
+              const inputEvent = new Event('input', { bubbles: true });
+              const changeEvent = new Event('change', { bubbles: true });
+              const blurEvent = new Event('blur', { bubbles: true });
+              
+              passwordField.dispatchEvent(inputEvent);
+              passwordField.dispatchEvent(changeEvent);
+              passwordField.dispatchEvent(blurEvent);
+              
               // Trigger Angular events
-              passwordField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
+              try {
+                passwordField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
+              } catch (e) {}
+              
               console.log('schul.cloud: Password filled');
             }
             
@@ -476,6 +622,7 @@ class InjectionScripts {
             emailField.value = "$escapedEmail";
             emailField.dispatchEvent(new Event('input', { bubbles: true }));
             emailField.dispatchEvent(new Event('change', { bubbles: true }));
+            emailField.dispatchEvent(new Event('blur', { bubbles: true }));
             console.log('Outlook: Email filled');
           }
           
@@ -498,33 +645,59 @@ class InjectionScripts {
             passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
             console.log('Outlook: Password filled');
           }
           
-          // Auto-click submit/next button with improved detection
-          const buttonSelectors = [
-            'input[type="submit"]',
-            'button[type="submit"]',
-            'input[id*="submit"]',
-            'button[id*="submit"]',
-            'input[value*="Sign in"]',
-            'input[value*="Anmelden"]',
-            'button[class*="submit"]'
-          ];
-          
-          let submitButton = null;
-          for (const selector of buttonSelectors) {
-            submitButton = document.querySelector(selector);
-            if (submitButton && submitButton.offsetParent !== null) {
-              break;
+          // Auto-click submit/next button with comprehensive selector list
+          function clickSubmitButton() {
+            const buttonSelectors = [
+              'input[type="submit"]',
+              'button[type="submit"]',
+              'input[id*="idSIButton"]',
+              'button[id*="idSIButton"]',
+              'input[id*="submit"]',
+              'button[id*="submit"]',
+              'input[value*="Sign in"]',
+              'input[value*="Next"]',
+              'input[value*="Anmelden"]',
+              'input[value*="Weiter"]',
+              'button:has([data-icon-name="SignIn"])',
+              'button[data-report-event*="Signin"]',
+              'button[class*="submit"]',
+              'button[class*="primary"]'
+            ];
+            
+            let submitButton = null;
+            for (const selector of buttonSelectors) {
+              const buttons = document.querySelectorAll(selector);
+              for (const btn of buttons) {
+                if (btn.offsetParent !== null && !btn.disabled) {
+                  submitButton = btn;
+                  break;
+                }
+              }
+              if (submitButton) break;
             }
+            
+            if (submitButton) {
+              console.log('Outlook: Found submit button, clicking');
+              submitButton.click();
+              return true;
+            }
+            
+            console.log('Outlook: Submit button not found');
+            return false;
           }
           
-          if (submitButton && (emailField || passwordField)) {
+          // Wait for fields to be filled, then click
+          if (emailField || passwordField) {
             setTimeout(() => {
-              console.log('Outlook: Clicking submit button');
-              submitButton.click();
-            }, 300);
+              if (!clickSubmitButton()) {
+                // Try again after a longer delay
+                setTimeout(clickSubmitButton, 1000);
+              }
+            }, 500);
           }
         } catch (error) {
           console.error('Outlook injection error:', error);
