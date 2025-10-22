@@ -39,6 +39,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   bool _canGoBack = false;
   bool _canGoForward = false;
   bool _showAppSwitcher = false;
+  bool _webuntisPhase1Done = false;
+  bool _webuntisLoginTriggered = false;
 
   @override
   void initState() {
@@ -152,15 +154,18 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     
                     _updateNavigationButtons();
                     
-                    // Run post-load scripts FIRST (e.g., dialog dismissal for WebUntis)
-                    // This must happen before credential injection to avoid dialogs blocking login
-                    if (widget.appId != null) {
-                      await _runPostLoadScript(controller);
-                    }
-                    
-                    // Then inject auth credentials if required
-                    if (widget.requiresAuth) {
-                      await _injectAuthScript(controller);
+                    // WebUntis special handling
+                    if (widget.appId?.toLowerCase() == 'webuntis') {
+                      await _handleWebUntisFlow(controller, url.toString());
+                    } else {
+                      // Standard flow for other apps
+                      if (widget.appId != null) {
+                        await _runPostLoadScript(controller);
+                      }
+                      
+                      if (widget.requiresAuth) {
+                        await _injectAuthScript(controller);
+                      }
                     }
                   },
                   onProgressChanged: (controller, progress) {
@@ -327,6 +332,43 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       }
     } catch (error, stackTrace) {
       logger.error('Error running post-load script', error, stackTrace);
+    }
+  }
+
+  /// WebUntis-specific 3-phase flow handler
+  Future<void> _handleWebUntisFlow(InAppWebViewController controller, String url) async {
+    try {
+      final isLoginPage = url.contains('login') || !url.contains('today');
+      
+      if (isLoginPage && !_webuntisPhase1Done) {
+        // Phase 1: Close "Im Browser öffnen" dialog
+        logger.info('WebUntis: Starting Phase 1 (close initial dialog)');
+        await _runPostLoadScript(controller);
+        _webuntisPhase1Done = true;
+        
+        // Phase 2: Inject credentials after dialog is closed
+        if (widget.requiresAuth && !_webuntisLoginTriggered) {
+          logger.info('WebUntis: Starting Phase 2 (credential injection)');
+          await Future.delayed(const Duration(milliseconds: 800));
+          await _injectAuthScript(controller);
+          _webuntisLoginTriggered = true;
+        }
+      } else if (!isLoginPage && _webuntisLoginTriggered) {
+        // Phase 3: After successful login, close overlay
+        logger.info('WebUntis: Starting Phase 3 (close overlay after login)');
+        await Future.delayed(const Duration(milliseconds: 1000));
+        
+        // Run Phase 2 injection (overlay closing)
+        final phase2Script = InjectionScripts.webuntisPhase2Injection;
+        await controller.evaluateJavascript(source: phase2Script.js);
+        logger.info('WebUntis: Phase 3 completed');
+        
+        // Reset flags for potential future logins
+        _webuntisLoginTriggered = false;
+        _webuntisPhase1Done = false;
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error in WebUntis flow', error, stackTrace);
     }
   }
 

@@ -21,15 +21,30 @@ class InjectionScript {
 class InjectionScripts {
   InjectionScripts._();
 
+  /// Escape string for safe JavaScript injection
+  /// Prevents XSS and syntax errors from special characters in credentials
+  static String _escapeJs(String value) {
+    return value
+        .replaceAll('\\', '\\\\')  // Backslash must be first
+        .replaceAll('"', '\\"')     // Escape double quotes
+        .replaceAll("'", "\\'")     // Escape single quotes
+        .replaceAll('\n', '\\n')    // Escape newlines
+        .replaceAll('\r', '\\r')    // Escape carriage returns
+        .replaceAll('\t', '\\t');   // Escape tabs
+  }
+
   /// Moodle-specific credential injection
   static String getMoodleInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email.toLowerCase());
+    final escapedPassword = _escapeJs(password);
+    
     return '''
       (function() {
         try {
           // Find and fill username field
           const usernameField = document.querySelector('input[name="username"][id="username"]');
           if (usernameField && usernameField.value === '') {
-            usernameField.value = "${email.toLowerCase()}";
+            usernameField.value = "$escapedEmail";
             usernameField.dispatchEvent(new Event('input', { bubbles: true }));
             usernameField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -37,7 +52,7 @@ class InjectionScripts {
           // Find and fill password field
           const passwordField = document.querySelector('input[name="password"][id="password"]');
           if (passwordField && passwordField.value === '') {
-            passwordField.value = "$password";
+            passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -145,8 +160,11 @@ class InjectionScripts {
     description: 'Phase 2: Close overlay after login',
   );
 
-  /// WebUntis credential injection with Phase 2 overlay close
+  /// WebUntis credential injection (Phase 2 will be triggered separately after login)
   static String getWebuntisInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email);
+    final escapedPassword = _escapeJs(password);
+    
     return '''
       (function() {
         try {
@@ -155,7 +173,7 @@ class InjectionScripts {
           // Find and fill username field
           const usernameField = document.querySelector('input[type="text"][name="school"], input[id*="username"], input[id*="user"]');
           if (usernameField && usernameField.value === '') {
-            usernameField.value = "$email";
+            usernameField.value = "$escapedEmail";
             usernameField.dispatchEvent(new Event('input', { bubbles: true }));
             usernameField.dispatchEvent(new Event('change', { bubbles: true }));
             console.log('WebUntis: Username filled');
@@ -164,7 +182,7 @@ class InjectionScripts {
           // Find and fill password field
           const passwordField = document.querySelector('input[type="password"]');
           if (passwordField && passwordField.value === '') {
-            passwordField.value = "$password";
+            passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
             console.log('WebUntis: Password filled');
@@ -178,8 +196,8 @@ class InjectionScripts {
                 console.log('WebUntis: Clicking login button');
                 loginButton.click();
                 
-                // Schedule Phase 2: Close overlay after login completes
-                ${webuntisPhase2Injection.js}
+                // Phase 2 overlay closing will be handled separately after navigation
+                console.log('WebUntis: Phase 2 will be triggered after page load');
               }, 300);
             }
           }
@@ -192,13 +210,16 @@ class InjectionScripts {
 
   /// Schul.cloud credential injection
   static String getSchulcloudInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email);
+    final escapedPassword = _escapeJs(password);
+    
     return '''
       (function() {
         try {
           // Find and fill email field
           const emailField = document.querySelector('input[type="email"], input[name*="email"], input[id*="email"]');
           if (emailField && emailField.value === '') {
-            emailField.value = "$email";
+            emailField.value = "$escapedEmail";
             emailField.dispatchEvent(new Event('input', { bubbles: true }));
             emailField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -206,7 +227,7 @@ class InjectionScripts {
           // Find and fill password field
           const passwordField = document.querySelector('input[type="password"]');
           if (passwordField && passwordField.value === '') {
-            passwordField.value = "$password";
+            passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -227,14 +248,17 @@ class InjectionScripts {
 
   /// BigBlueButton credential injection (uses BBB-specific password if available)
   static String getBBBInjection(String email, String? bbbPassword) {
+    final escapedEmail = _escapeJs(email);
     final password = bbbPassword ?? '';
+    final escapedPassword = _escapeJs(password);
+    
     return '''
       (function() {
         try {
           // Find and fill email/username field
           const usernameField = document.querySelector('input[type="text"], input[type="email"], input[name*="name"], input[id*="name"]');
           if (usernameField && usernameField.value === '') {
-            usernameField.value = "$email";
+            usernameField.value = "$escapedEmail";
             usernameField.dispatchEvent(new Event('input', { bubbles: true }));
             usernameField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -243,7 +267,7 @@ class InjectionScripts {
           ${password.isNotEmpty ? '''
           const passwordField = document.querySelector('input[type="password"]');
           if (passwordField && passwordField.value === '') {
-            passwordField.value = "$password";
+            passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -257,13 +281,16 @@ class InjectionScripts {
 
   /// Outlook/Exchange credential injection
   static String getOutlookInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email);
+    final escapedPassword = _escapeJs(password);
+    
     return '''
       (function() {
         try {
           // Find and fill email field
           const emailField = document.querySelector('input[type="email"], input[name*="loginfmt"], input[id*="username"]');
           if (emailField && emailField.value === '') {
-            emailField.value = "$email";
+            emailField.value = "$escapedEmail";
             emailField.dispatchEvent(new Event('input', { bubbles: true }));
             emailField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -271,7 +298,7 @@ class InjectionScripts {
           // Find and fill password field
           const passwordField = document.querySelector('input[type="password"], input[name*="passwd"]');
           if (passwordField && passwordField.value === '') {
-            passwordField.value = "$password";
+            passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -292,16 +319,19 @@ class InjectionScripts {
 
   /// Generic fallback injection for unknown apps
   static String getGenericInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email);
+    final escapedPassword = _escapeJs(password);
+    
     return '''
       (function() {
         try {
           // Find username field (can be email, user, or text input)
           const usernameField = document.querySelector(
-            'input[type="text"]:not([type="password"]), input[type="email"], input[name*="email"], input[name*="user"], input[name*="login"], input[id*="email"], input[id*="user"], input[id*="login"]'
+            'input[type="text"], input[type="email"], input[name*="email"], input[name*="user"], input[name*="login"], input[id*="email"], input[id*="user"], input[id*="login"]'
           );
           
           if (usernameField && usernameField.value === '') {
-            usernameField.value = "$email";
+            usernameField.value = "$escapedEmail";
             usernameField.dispatchEvent(new Event('input', { bubbles: true }));
             usernameField.dispatchEvent(new Event('change', { bubbles: true }));
             usernameField.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -310,7 +340,7 @@ class InjectionScripts {
           // Find password field
           const passwordField = document.querySelector('input[type="password"]');
           if (passwordField && passwordField.value === '') {
-            passwordField.value = "$password";
+            passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
             passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
