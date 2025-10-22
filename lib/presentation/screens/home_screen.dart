@@ -13,7 +13,6 @@ import 'package:bbzcloud_mobil/core/utils/route_animations.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
-import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
@@ -29,12 +28,22 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isEditMode = false;
 
+  String _getAppId(dynamic app) {
+    if (app is AppItem) {
+      return app.id;
+    } else if (app is CustomApp) {
+      return app.id;
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final apps = _isEditMode 
         ? ref.watch(allAppsProvider) 
         : ref.watch(visibleAppsProvider);
     final userState = ref.watch(userProvider);
+    final settings = ref.watch(appSettingsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -76,17 +85,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  FilledButton.icon(
-                    onPressed: () {
-                      // TODO: Navigate to setup
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Setup coming soon')),
-                      );
-                    },
-                    icon: const Icon(Icons.login),
-                    label: const Text('Konto einrichten'),
-                  ),
                 ],
               ),
             );
@@ -114,6 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           return CustomScrollView(
             slivers: [
+              // Header
               SliverPadding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 sliver: SliverToBoxAdapter(
@@ -134,40 +133,98 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      Text(
-                        AppStrings.allApps,
-                        style: AppTextStyles.body1.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            AppStrings.allApps,
+                            style: AppTextStyles.body1.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (_isEditMode) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              '(Ziehen zum Sortieren)',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.0,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
+              
+              // Apps Grid or Reorderable List
+              if (_isEditMode)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  sliver: SliverReorderableList(
+                    itemCount: apps.length,
+                    itemBuilder: (context, index) {
                       final app = apps[index];
-                      return AppCard(
-                        app: app,
-                        onTap: () => _handleAppTap(context, app),
+                      final appId = _getAppId(app);
+                      final isVisible = settings.isVisible(appId);
+                      
+                      return ReorderableDragStartListener(
+                        key: ValueKey(appId),
+                        index: index,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: AppCard(
+                            app: app,
+                            onTap: () {},
+                            isEditMode: true,
+                            isVisible: isVisible,
+                            onToggleVisibility: () {
+                              ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
+                            },
+                          ),
+                        ),
                       );
                     },
-                    childCount: apps.length,
+                    onReorder: (oldIndex, newIndex) {
+                      if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+                      
+                      final reorderedApps = List<dynamic>.from(apps);
+                      final app = reorderedApps.removeAt(oldIndex);
+                      reorderedApps.insert(newIndex, app);
+                      
+                      final appIds = reorderedApps.map((a) => _getAppId(a)).toList();
+                      ref.read(appSettingsProvider.notifier).reorderApps(appIds);
+                    },
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.0,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: AppSpacing.md,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final app = apps[index];
+                        return AppCard(
+                          app: app,
+                          onTap: () => _handleAppTap(context, app),
+                        );
+                      },
+                      childCount: apps.length,
+                    ),
                   ),
                 ),
-              ),
+              
               const SliverPadding(
                 padding: EdgeInsets.only(bottom: AppSpacing.xxl),
               ),
@@ -209,7 +266,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _isEditMode ? null : FloatingActionButton(
         onPressed: () {
           showDialog(
             context: context,
@@ -238,7 +295,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    // Open in WebView with animation
     Navigator.push(
       context,
       RouteAnimations.slideFromBottom(
