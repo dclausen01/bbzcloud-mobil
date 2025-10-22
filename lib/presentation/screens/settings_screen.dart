@@ -13,6 +13,7 @@ import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/credentials_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -226,18 +227,7 @@ class SettingsScreen extends ConsumerWidget {
   void _showCredentialsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Anmeldedaten'),
-        content: const Text(
-          'Die Verwaltung der Anmeldedaten wird in einer kommenden Version verfügbar sein.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      builder: (context) => const CredentialsDialog(),
     );
   }
 

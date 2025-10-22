@@ -56,25 +56,26 @@ class AppCard extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none, // Allow controls to overflow
           children: [
-            // Main card content
-            InkWell(
-              onTap: isEditMode ? null : onTap,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color,
-                      color.withOpacity(0.8),
-                    ],
+            // Main card content - use SizedBox.expand to fill card
+            SizedBox.expand(
+              child: InkWell(
+                onTap: isEditMode ? null : onTap,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color,
+                        color.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                     Icon(
                       icon,
                       size: 48,
@@ -101,8 +102,9 @@ class AppCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

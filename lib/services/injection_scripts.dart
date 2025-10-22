@@ -2,7 +2,7 @@
 /// 
 /// App-specific JavaScript injection for credential auto-fill and custom behaviors
 /// 
-/// @version 1.0.0
+/// @version 1.1.0
 
 /// Injection script configuration
 class InjectionScript {
@@ -208,7 +208,7 @@ class InjectionScripts {
     ''';
   }
 
-  /// Schul.cloud credential injection
+  /// Schul.cloud credential injection with scroll fix
   static String getSchulcloudInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -216,29 +216,126 @@ class InjectionScripts {
     return '''
       (function() {
         try {
-          // Find and fill email field
-          const emailField = document.querySelector('input[type="email"], input[name*="email"], input[id*="email"]');
-          if (emailField && emailField.value === '') {
-            emailField.value = "$escapedEmail";
-            emailField.dispatchEvent(new Event('input', { bubbles: true }));
-            emailField.dispatchEvent(new Event('change', { bubbles: true }));
+          console.log('schul.cloud: Starting credential injection');
+          
+          // Apply scroll fix
+          const style = document.createElement('style');
+          style.textContent = `
+            [class*="outer-scroller"],
+            [class*="navigation-item-wrapper"],
+            [class*="channel-list"],
+            [class*="chat-list"],
+            [class*="conversation-list"],
+            [class*="message-list"],
+            [class*="sidebar"],
+            div[class*="List"],
+            div[class*="Sidebar"],
+            div[class*="scroller"] {
+              overflow-y: auto !important;
+              overflow-x: hidden !important;
+              -webkit-overflow-scrolling: touch !important;
+              overscroll-behavior: contain !important;
+              touch-action: pan-y !important;
+            }
+          `;
+          document.head.appendChild(style);
+          console.log('schul.cloud: Scroll fix applied');
+          
+          // Wait for Angular to load
+          function attemptFill() {
+            // Try multiple selectors for email field (schul.cloud uses material design)
+            const emailSelectors = [
+              'input[type="email"]',
+              'input[name="email"]',
+              'input[name="username"]',
+              'input[formcontrolname="email"]',
+              'input[formcontrolname="username"]',
+              'input[placeholder*="mail" i]',
+              'input[placeholder*="benutzername" i]',
+              'input[id*="email"]',
+              'input[id*="username"]',
+              'mat-form-field input[type="email"]',
+              'mat-form-field input:not([type="password"])'
+            ];
+            
+            let emailField = null;
+            for (const selector of emailSelectors) {
+              emailField = document.querySelector(selector);
+              if (emailField && emailField.offsetParent !== null) {
+                break;
+              }
+            }
+            
+            if (emailField && emailField.value === '') {
+              emailField.value = "$escapedEmail";
+              emailField.dispatchEvent(new Event('input', { bubbles: true }));
+              emailField.dispatchEvent(new Event('change', { bubbles: true }));
+              emailField.dispatchEvent(new Event('blur', { bubbles: true }));
+              // Trigger Angular events
+              emailField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
+              console.log('schul.cloud: Email filled');
+            }
+            
+            // Find and fill password field
+            const passwordSelectors = [
+              'input[type="password"]',
+              'input[formcontrolname="password"]',
+              'mat-form-field input[type="password"]'
+            ];
+            
+            let passwordField = null;
+            for (const selector of passwordSelectors) {
+              passwordField = document.querySelector(selector);
+              if (passwordField && passwordField.offsetParent !== null) {
+                break;
+              }
+            }
+            
+            if (passwordField && passwordField.value === '') {
+              passwordField.value = "$escapedPassword";
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+              passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
+              // Trigger Angular events
+              passwordField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
+              console.log('schul.cloud: Password filled');
+            }
+            
+            // Auto-click login button if both fields are filled
+            if (emailField && passwordField && emailField.value && passwordField.value) {
+              const buttonSelectors = [
+                'button[type="submit"]',
+                'button[class*="login" i]',
+                'button[class*="submit" i]',
+                'button[class*="anmelden" i]',
+                'button mat-button[type="submit"]',
+                'input[type="submit"]'
+              ];
+              
+              let loginButton = null;
+              for (const selector of buttonSelectors) {
+                loginButton = document.querySelector(selector);
+                if (loginButton && loginButton.offsetParent !== null) {
+                  break;
+                }
+              }
+              
+              if (loginButton) {
+                setTimeout(() => {
+                  console.log('schul.cloud: Clicking login button');
+                  loginButton.click();
+                }, 500);
+              }
+            }
           }
           
-          // Find and fill password field
-          const passwordField = document.querySelector('input[type="password"]');
-          if (passwordField && passwordField.value === '') {
-            passwordField.value = "$escapedPassword";
-            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-          }
+          // Try immediately
+          attemptFill();
           
-          // Auto-click login button
-          const loginButton = document.querySelector('button[type="submit"], button[class*="login"]');
-          if (loginButton && emailField && passwordField && emailField.value && passwordField.value) {
-            setTimeout(() => {
-              loginButton.click();
-            }, 300);
-          }
+          // Retry after delays (for Angular/SPA)
+          setTimeout(attemptFill, 1000);
+          setTimeout(attemptFill, 2000);
+          
         } catch (error) {
           console.error('Schul.cloud injection error:', error);
         }
@@ -255,12 +352,30 @@ class InjectionScripts {
     return '''
       (function() {
         try {
+          console.log('BBB: Starting credential injection');
+          
           // Find and fill email/username field
-          const usernameField = document.querySelector('input[type="text"], input[type="email"], input[name*="name"], input[id*="name"]');
+          const usernameSelectors = [
+            'input[type="text"]',
+            'input[type="email"]',
+            'input[name*="name"]',
+            'input[id*="name"]',
+            'input[placeholder*="name" i]'
+          ];
+          
+          let usernameField = null;
+          for (const selector of usernameSelectors) {
+            usernameField = document.querySelector(selector);
+            if (usernameField && usernameField.offsetParent !== null) {
+              break;
+            }
+          }
+          
           if (usernameField && usernameField.value === '') {
             usernameField.value = "$escapedEmail";
             usernameField.dispatchEvent(new Event('input', { bubbles: true }));
             usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('BBB: Username filled');
           }
           
           // Find and fill password field if BBB password is available
@@ -270,8 +385,60 @@ class InjectionScripts {
             passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('BBB: Password filled');
           }
-          ''' : ''}
+          
+          // Auto-click join/login button
+          if (usernameField && passwordField && usernameField.value && passwordField.value) {
+            const buttonSelectors = [
+              'button[type="submit"]',
+              'button[class*="join" i]',
+              'button[class*="login" i]',
+              'button[aria-label*="join" i]',
+              'input[type="submit"]'
+            ];
+            
+            let submitButton = null;
+            for (const selector of buttonSelectors) {
+              submitButton = document.querySelector(selector);
+              if (submitButton && submitButton.offsetParent !== null) {
+                break;
+              }
+            }
+            
+            if (submitButton) {
+              setTimeout(() => {
+                console.log('BBB: Clicking submit button');
+                submitButton.click();
+              }, 300);
+            }
+          }
+          ''' : '''
+          // No password, just click join button if username is filled
+          if (usernameField && usernameField.value) {
+            const buttonSelectors = [
+              'button[type="submit"]',
+              'button[class*="join" i]',
+              'button[aria-label*="join" i]',
+              'input[type="submit"]'
+            ];
+            
+            let submitButton = null;
+            for (const selector of buttonSelectors) {
+              submitButton = document.querySelector(selector);
+              if (submitButton && submitButton.offsetParent !== null) {
+                break;
+              }
+            }
+            
+            if (submitButton) {
+              setTimeout(() => {
+                console.log('BBB: Clicking join button');
+                submitButton.click();
+              }, 300);
+            }
+          }
+          '''}
         } catch (error) {
           console.error('BBB injection error:', error);
         }
@@ -279,7 +446,7 @@ class InjectionScripts {
     ''';
   }
 
-  /// Outlook/Exchange credential injection
+  /// Outlook/Exchange credential injection with improved button detection
   static String getOutlookInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -287,26 +454,75 @@ class InjectionScripts {
     return '''
       (function() {
         try {
+          console.log('Outlook: Starting credential injection');
+          
           // Find and fill email field
-          const emailField = document.querySelector('input[type="email"], input[name*="loginfmt"], input[id*="username"]');
+          const emailSelectors = [
+            'input[type="email"]',
+            'input[name*="loginfmt"]',
+            'input[id*="username"]',
+            'input[name="username"]'
+          ];
+          
+          let emailField = null;
+          for (const selector of emailSelectors) {
+            emailField = document.querySelector(selector);
+            if (emailField && emailField.offsetParent !== null) {
+              break;
+            }
+          }
+          
           if (emailField && emailField.value === '') {
             emailField.value = "$escapedEmail";
             emailField.dispatchEvent(new Event('input', { bubbles: true }));
             emailField.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('Outlook: Email filled');
           }
           
           // Find and fill password field
-          const passwordField = document.querySelector('input[type="password"], input[name*="passwd"]');
+          const passwordSelectors = [
+            'input[type="password"]',
+            'input[name*="passwd"]',
+            'input[name="password"]'
+          ];
+          
+          let passwordField = null;
+          for (const selector of passwordSelectors) {
+            passwordField = document.querySelector(selector);
+            if (passwordField && passwordField.offsetParent !== null) {
+              break;
+            }
+          }
+          
           if (passwordField && passwordField.value === '') {
             passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('Outlook: Password filled');
           }
           
-          // Auto-click submit/next button
-          const submitButton = document.querySelector('input[type="submit"], button[type="submit"]');
-          if (submitButton) {
+          // Auto-click submit/next button with improved detection
+          const buttonSelectors = [
+            'input[type="submit"]',
+            'button[type="submit"]',
+            'input[id*="submit"]',
+            'button[id*="submit"]',
+            'input[value*="Sign in"]',
+            'input[value*="Anmelden"]',
+            'button[class*="submit"]'
+          ];
+          
+          let submitButton = null;
+          for (const selector of buttonSelectors) {
+            submitButton = document.querySelector(selector);
+            if (submitButton && submitButton.offsetParent !== null) {
+              break;
+            }
+          }
+          
+          if (submitButton && (emailField || passwordField)) {
             setTimeout(() => {
+              console.log('Outlook: Clicking submit button');
               submitButton.click();
             }, 300);
           }
