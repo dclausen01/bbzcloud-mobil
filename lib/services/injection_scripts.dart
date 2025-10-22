@@ -107,7 +107,7 @@ class InjectionScripts {
   );
 
   /// WebUntis-specific injection - Phase 2: Close overlay "X" AFTER login
-  /// Uses exact selectors from BBZCloud Mobile desktop app
+  /// Uses exact selectors from BBZCloud Mobile desktop app - INCLUDING <a> elements!
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
@@ -122,35 +122,51 @@ class InjectionScripts {
             console.log('WebUntis Phase 2: Attempting to close overlay (attempt ' + attemptCount + ')');
             
             // Use exact selectors from desktop app BBZCloud Mobile
+            // IMPORTANT: Include 'a' elements as they can be close buttons too!
             const closeSelectors = [
+              'a, button',  // Check ALL links and buttons first
               '[class*="banner"] [class*="close"]',
               '[class*="overlay"] [class*="close"]',
               '[class*="notification"] [class*="close"]',
               'button[aria-label*="close" i]',
+              'a[aria-label*="close" i]',
               'button[aria-label*="schließen" i]',
+              'a[aria-label*="schließen" i]',
               'button[title*="close" i]',
+              'a[title*="close" i]',
               'button[title*="schließen" i]',
+              'a[title*="schließen" i]',
               'button:has(svg[class*="close"])',
+              'a:has(svg[class*="close"])',
               'button:has([class*="close"])',
+              'a:has([class*="close"])',
               '[style*="position: absolute"][style*="right"][style*="top"] button',
-              '[style*="position: fixed"][style*="right"][style*="top"] button'
+              '[style*="position: absolute"][style*="right"][style*="top"] a',
+              '[style*="position: fixed"][style*="right"][style*="top"] button',
+              '[style*="position: fixed"][style*="right"][style*="top"] a'
             ];
             
             for (const selector of closeSelectors) {
               try {
-                const buttons = document.querySelectorAll(selector);
-                for (const button of buttons) {
-                  if (button && button.offsetParent !== null) {
-                    // Check for close icon (X symbols)
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                  if (element && element.offsetParent !== null) {
+                    // Check for close icon (X symbols) - works for both <a> and <button>
+                    const text = element.textContent || '';
+                    const html = element.innerHTML || '';
+                    const className = element.className || '';
+                    
                     const hasCloseIcon = 
-                      button.textContent.includes('×') || 
-                      button.textContent.includes('✕') ||
-                      button.innerHTML.includes('close') ||
-                      button.className.includes('close');
+                      text.includes('×') || 
+                      text.includes('✕') ||
+                      text.toLowerCase().includes('close') ||
+                      text.toLowerCase().includes('schließen') ||
+                      html.includes('close') ||
+                      className.includes('close');
                     
                     if (hasCloseIcon) {
-                      console.log('WebUntis Phase 2: Clicking close button with selector:', selector);
-                      button.click();
+                      console.log('WebUntis Phase 2: Clicking close element (' + element.tagName + ') with selector:', selector);
+                      element.click();
                       foundAndClicked = true;
                       break;
                     }
@@ -196,7 +212,7 @@ class InjectionScripts {
       })();
     ''',
     delay: 0,
-    description: 'Phase 2: Close overlay after login (Desktop app selectors)',
+    description: 'Phase 2: Close overlay after login (Desktop app selectors + <a> elements)',
   );
 
   /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
@@ -963,9 +979,6 @@ class InjectionScripts {
       
       case 'outlook':
         return getOutlookInjection(email, password);
-      
-      case 'taskcards':
-        return getTaskcardsInjection(email, password);
       
       default:
         // Use generic injection for unknown apps
