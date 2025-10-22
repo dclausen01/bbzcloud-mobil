@@ -11,6 +11,7 @@ import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/todos_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
@@ -103,6 +104,19 @@ class AppDrawer extends ConsumerWidget {
 
               // Bottom Section
               const Divider(),
+              ListTile(
+                leading: const Icon(Icons.checklist),
+                title: const Text('Aufgaben'),
+                onTap: () {
+                  Navigator.pop(context); // Close drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TodosScreen(),
+                    ),
+                  );
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.settings),
                 title: const Text(AppStrings.settings),
