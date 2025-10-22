@@ -96,14 +96,14 @@ class DownloadService {
       // Try to extract filename from Content-Disposition header
       final contentDisposition = response.headers['content-disposition'];
       if (contentDisposition != null) {
-        final filenameMatch = RegExp(r'filename[^;=\n]*=(([\'"]).*?\2|[^;\n]*)')
+        final filenameMatch = RegExp(r"filename[^;=\n]*=((['\"]).*?\2|[^;\n]*)")
             .firstMatch(contentDisposition);
         if (filenameMatch != null && filenameMatch.group(1) != null) {
-          String extractedFilename = filenameMatch.group(1)!.replaceAll(RegExp(r'[\'"]'), '');
+          String extractedFilename = filenameMatch.group(1)!.replaceAll(RegExp(r"['\"]"), '');
           
           // Handle UTF-8 encoded filenames
           if (extractedFilename.contains('UTF-8')) {
-            final utf8Match = RegExp(r'filename\*=UTF-8\'\'([^;\n]*)')
+            final utf8Match = RegExp(r"filename\*=UTF-8''([^;\n]*)")
                 .firstMatch(contentDisposition);
             if (utf8Match != null && utf8Match.group(1) != null) {
               extractedFilename = Uri.decodeComponent(utf8Match.group(1)!);

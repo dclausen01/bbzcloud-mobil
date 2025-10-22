@@ -381,15 +381,15 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     try {
       logger.info('Download request intercepted: ${request.url}');
       logger.info('Suggested filename: ${request.suggestedFilename}');
-      logger.info('Content type: ${request.contentType}');
       logger.info('Content length: ${request.contentLength}');
 
       // Extract headers from the request if available
-      final Map<String, String>? headers = {};
+      final Map<String, String> headers = {};
       
       // Get cookies from WebView to maintain session
       if (_webViewController != null) {
-        final cookies = await _webViewController!.getCookies(url: request.url);
+        final cookieManager = CookieManager.instance();
+        final cookies = await cookieManager.getCookies(url: request.url);
         if (cookies.isNotEmpty) {
           final cookieString = cookies
               .map((cookie) => '${cookie.name}=${cookie.value}')
