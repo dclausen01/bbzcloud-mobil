@@ -56,18 +56,19 @@ class AppCard extends StatelessWidget {
           onTap: isEditMode ? null : onTap,
           child: Stack(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color,
-                      color.withOpacity(0.8),
-                    ],
+              SizedBox.expand(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color,
+                        color.withOpacity(0.8),
+                      ],
+                    ),
                   ),
-                ),
-                child: Padding(
+                  child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -100,6 +101,7 @@ class AppCard extends StatelessWidget {
                         ),
                       ],
                     ],
+                    ),
                   ),
                 ),
               ),
