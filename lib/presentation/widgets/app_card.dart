@@ -51,108 +51,122 @@ class AppCard extends StatelessWidget {
     return Opacity(
       opacity: isEditMode && !isVisible ? 0.5 : 1.0,
       child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: isEditMode ? null : onTap,
-          child: Stack(
-            children: [
-              SizedBox.expand(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        color,
-                        color.withOpacity(0.8),
-                      ],
-                    ),
+        clipBehavior: Clip.none, // Changed from antiAlias to none for edit controls
+        elevation: isEditMode ? 4 : 1,
+        child: Stack(
+          clipBehavior: Clip.none, // Allow controls to overflow
+          children: [
+            // Main card content
+            InkWell(
+              onTap: isEditMode ? null : onTap,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color,
+                      color.withOpacity(0.8),
+                    ],
                   ),
-                  child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        icon,
-                        size: 48,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 48,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      title,
+                      style: AppTextStyles.heading3.copyWith(
                         color: Colors.white,
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (description != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
-                        title,
-                        style: AppTextStyles.heading3.copyWith(
-                          color: Colors.white,
+                        description,
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white.withOpacity(0.9),
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (description != null) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          description,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
                     ],
-                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Edit Mode Controls - now on top with proper z-index
+            if (isEditMode) ...[
+              // Drag Handle
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.drag_indicator,
+                    color: Colors.white,
+                    size: 24,
                   ),
                 ),
               ),
               
-              // Edit Mode Controls
-              if (isEditMode) ...[
-                // Drag Handle
-                Positioned(
-                  top: 4,
-                  left: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(
-                      Icons.drag_handle,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                
-                // Visibility Toggle
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: onToggleVisibility,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isVisible ? Icons.visibility : Icons.visibility_off,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+              // Visibility Toggle Button
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onToggleVisibility,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isVisible ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.white,
+                        size: 24,
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
