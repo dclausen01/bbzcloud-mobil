@@ -6,11 +6,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bbzcloud_mobil/core/constants/app_config.dart';
 import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/core/utils/validators.dart';
 import 'package:bbzcloud_mobil/data/models/credentials.dart';
-import 'package:bbzcloud_mobil/data/models/user.dart' show User, UserRole;
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 
