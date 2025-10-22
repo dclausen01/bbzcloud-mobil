@@ -36,6 +36,8 @@ class AppItem {
   final bool requiresAuth;
   final bool teacherOnly;
   final NativeAppConfig? nativeApp;
+  final bool isVisible;
+  final int orderIndex;
 
   const AppItem({
     required this.id,
@@ -47,6 +49,8 @@ class AppItem {
     this.requiresAuth = false,
     this.teacherOnly = false,
     this.nativeApp,
+    this.isVisible = true,
+    this.orderIndex = 999,
   });
 }
 

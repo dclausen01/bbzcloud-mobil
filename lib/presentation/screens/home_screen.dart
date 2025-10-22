@@ -19,17 +19,37 @@ import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/custom_app_dialog.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final apps = ref.watch(allAppsProvider);
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _isEditMode = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final apps = _isEditMode 
+        ? ref.watch(allAppsProvider) 
+        : ref.watch(visibleAppsProvider);
     final userState = ref.watch(userProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.appTitle),
+        actions: [
+          IconButton(
+            icon: Icon(_isEditMode ? Icons.done : Icons.edit),
+            onPressed: () {
+              setState(() {
+                _isEditMode = !_isEditMode;
+              });
+            },
+            tooltip: _isEditMode ? 'Fertig' : 'Bearbeiten',
+          ),
+        ],
       ),
       drawer: const AppDrawer(),
       body: userState.when(

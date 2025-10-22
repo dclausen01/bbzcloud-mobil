@@ -4,12 +4,116 @@
 /// 
 /// @version 0.1.0
 
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
+import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 import 'package:bbzcloud_mobil/data/models/user.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
+
+const String _appSettingsKey = 'bbzcloud_app_settings';
+
+/// App settings (visibility and order)
+class AppSettings {
+  final Map<String, bool> visibility;
+  final Map<String, int> order;
+
+  const AppSettings({
+    required this.visibility,
+    required this.order,
+  });
+
+  factory AppSettings.empty() {
+    return const AppSettings(visibility: {}, order: {});
+  }
+
+  factory AppSettings.fromJson(Map<String, dynamic> json) {
+    return AppSettings(
+      visibility: Map<String, bool>.from(json['visibility'] ?? {}),
+      order: Map<String, int>.from(json['order'] ?? {}),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'visibility': visibility,
+      'order': order,
+    };
+  }
+
+  bool isVisible(String appId) => visibility[appId] ?? true;
+  int getOrder(String appId) => order[appId] ?? 999;
+}
+
+/// App settings provider
+final appSettingsProvider = StateNotifierProvider<AppSettingsNotifier, AppSettings>((ref) {
+  return AppSettingsNotifier();
+});
+
+class AppSettingsNotifier extends StateNotifier<AppSettings> {
+  AppSettingsNotifier() : super(AppSettings.empty()) {
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_appSettingsKey);
+      
+      if (jsonString != null) {
+        final json = jsonDecode(jsonString) as Map<String, dynamic>;
+        state = AppSettings.fromJson(json);
+        logger.info('Loaded app settings');
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error loading app settings', error, stackTrace);
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = jsonEncode(state.toJson());
+      await prefs.setString(_appSettingsKey, jsonString);
+    } catch (error, stackTrace) {
+      logger.error('Error saving app settings', error, stackTrace);
+    }
+  }
+
+  /// Toggle app visibility
+  Future<void> toggleVisibility(String appId) async {
+    final newVisibility = Map<String, bool>.from(state.visibility);
+    newVisibility[appId] = !(state.visibility[appId] ?? true);
+    
+    state = AppSettings(
+      visibility: newVisibility,
+      order: state.order,
+    );
+    
+    await _saveSettings();
+    logger.info('Toggled visibility for $appId: ${newVisibility[appId]}');
+  }
+
+  /// Reorder apps
+  Future<void> reorderApps(List<String> appIds) async {
+    final newOrder = <String, int>{};
+    
+    for (int i = 0; i < appIds.length; i++) {
+      newOrder[appIds[i]] = i;
+    }
+    
+    state = AppSettings(
+      visibility: state.visibility,
+      order: newOrder,
+    );
+    
+    await _saveSettings();
+    logger.info('Reordered ${appIds.length} apps');
+  }
+}
 
 /// Custom apps provider
 final customAppsProvider = StateNotifierProvider<CustomAppsNotifier, AsyncValue<List<CustomApp>>>((ref) {
@@ -100,28 +204,60 @@ final filteredNavigationAppsProvider = Provider<List<AppItem>>((ref) {
       }
       
       final allApps = NavigationApps.getAppsForRole(user.role.value);
-      return allApps.values.toList()
-        ..sort((a, b) => a.title.compareTo(b.title));
+      return allApps.values.toList();
     },
     orElse: () => [],
   );
 });
 
-/// All apps (navigation + custom) combined
+/// All apps (navigation + custom) combined and sorted
 final allAppsProvider = Provider<List<dynamic>>((ref) {
   final navigationApps = ref.watch(filteredNavigationAppsProvider);
   final customAppsState = ref.watch(customAppsProvider);
+  final settings = ref.watch(appSettingsProvider);
   
-  return customAppsState.maybeWhen(
-    data: (customApps) {
-      return [...navigationApps, ...customApps];
-    },
-    orElse: () => navigationApps,
+  final customApps = customAppsState.maybeWhen(
+    data: (apps) => apps,
+    orElse: () => <CustomApp>[],
   );
+  
+  // Combine all apps
+  final allApps = <dynamic>[...navigationApps, ...customApps];
+  
+  // Sort by order
+  allApps.sort((a, b) {
+    final aId = a is AppItem ? a.id : (a as CustomApp).id;
+    final bId = b is AppItem ? b.id : (b as CustomApp).id;
+    
+    final aOrder = settings.getOrder(aId);
+    final bOrder = settings.getOrder(bId);
+    
+    if (aOrder != bOrder) {
+      return aOrder.compareTo(bOrder);
+    }
+    
+    // If same order, sort by title
+    final aTitle = a is AppItem ? a.title : (a as CustomApp).title;
+    final bTitle = b is AppItem ? b.title : (b as CustomApp).title;
+    return aTitle.compareTo(bTitle);
+  });
+  
+  return allApps;
+});
+
+/// Visible apps only (for normal mode)
+final visibleAppsProvider = Provider<List<dynamic>>((ref) {
+  final allApps = ref.watch(allAppsProvider);
+  final settings = ref.watch(appSettingsProvider);
+  
+  return allApps.where((app) {
+    final appId = app is AppItem ? app.id : (app as CustomApp).id;
+    return settings.isVisible(appId);
+  }).toList();
 });
 
 /// Count of available apps
 final appsCountProvider = Provider<int>((ref) {
-  final apps = ref.watch(allAppsProvider);
+  final apps = ref.watch(visibleAppsProvider);
   return apps.length;
 });

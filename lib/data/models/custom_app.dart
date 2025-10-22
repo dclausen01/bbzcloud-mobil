@@ -14,6 +14,7 @@ class CustomApp {
   final IconData icon;
   final int? userId;
   final int orderIndex;
+  final bool isVisible;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -25,6 +26,7 @@ class CustomApp {
     required this.icon,
     this.userId,
     required this.orderIndex,
+    this.isVisible = true,
     this.createdAt,
     this.updatedAt,
   }) {
@@ -46,6 +48,7 @@ class CustomApp {
       ),
       userId: map['user_id'] as int?,
       orderIndex: map['order_index'] as int,
+      isVisible: (map['is_visible'] as int?) == 1,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -65,6 +68,7 @@ class CustomApp {
       'icon': icon.codePoint.toString(),
       if (userId != null) 'user_id': userId,
       'order_index': orderIndex,
+      'is_visible': isVisible ? 1 : 0,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -78,6 +82,7 @@ class CustomApp {
     IconData icon = Icons.apps,
     int? userId,
     int orderIndex = 0,
+    bool isVisible = true,
   }) {
     const uuid = Uuid();
     final now = DateTime.now();
@@ -90,6 +95,7 @@ class CustomApp {
       icon: icon,
       userId: userId,
       orderIndex: orderIndex,
+      isVisible: isVisible,
       createdAt: now,
       updatedAt: now,
     );
@@ -104,6 +110,7 @@ class CustomApp {
     IconData? icon,
     int? userId,
     int? orderIndex,
+    bool? isVisible,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -115,6 +122,7 @@ class CustomApp {
       icon: icon ?? this.icon,
       userId: userId ?? this.userId,
       orderIndex: orderIndex ?? this.orderIndex,
+      isVisible: isVisible ?? this.isVisible,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -122,7 +130,7 @@ class CustomApp {
 
   @override
   String toString() {
-    return 'CustomApp(id: $id, title: $title, url: $url)';
+    return 'CustomApp(id: $id, title: $title, url: $url, visible: $isVisible)';
   }
 
   @override
