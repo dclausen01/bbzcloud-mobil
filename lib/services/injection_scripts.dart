@@ -259,72 +259,145 @@ class InjectionScripts {
     description: 'Phase 3: Monitor for overlays after user interaction',
   );
 
-  /// WebUntis credential injection (Phase 2 will be triggered separately after login)
+  /// WebUntis credential injection - Using React Fiber Node approach from Electron app
   static String getWebuntisInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
     
     return '''
-      (function() {
+      (async function() {
         try {
-          console.log('WebUntis: Starting credential injection');
+          console.log('WebUntis: Starting credential injection (React Fiber approach)');
           
-          // Find and fill username field with multiple selectors
-          const usernameSelectors = [
-            'input[type="text"]:not([type="password"])',
-            'input[name="school"]',
-            'input[id*="username"]',
-            'input[id*="user"]',
-            'input[name*="user"]',
-            'input[placeholder*="user" i]',
-            'input[placeholder*="name" i]'
-          ];
+          // Store credentials as constants
+          const USERNAME = "$escapedEmail";
+          const PASSWORD = "$escapedPassword";
           
-          let usernameField = null;
-          for (const selector of usernameSelectors) {
-            usernameField = document.querySelector(selector);
-            if (usernameField && usernameField.offsetParent !== null && usernameField.type !== 'password') {
-              break;
+          // Wait for form to be ready
+          await new Promise((resolve) => {
+            const checkForm = () => {
+              const form = document.querySelector('.un2-login-form form');
+              if (form) {
+                resolve();
+              } else {
+                setTimeout(checkForm, 100);
+              }
+            };
+            checkForm();
+          });
+
+          // Get form elements
+          const form = document.querySelector('.un2-login-form form');
+          const usernameField = form.querySelector('input[type="text"].un-input-group__input');
+          const passwordField = form.querySelector('input[type="password"].un-input-group__input');
+          const submitButton = form.querySelector('button[type="submit"]');
+
+          if (!usernameField || !passwordField || !submitButton) {
+            console.log('WebUntis: Form elements not found');
+            return false;
+          }
+
+          // Function to find React fiber node
+          const getFiberNode = (element) => {
+            const key = Object.keys(element).find(key => 
+              key.startsWith('__reactFiber\$') || 
+              key.startsWith('__reactInternalInstance\$')
+            );
+            return element[key];
+          };
+
+          // Function to find React props
+          const getReactProps = (element) => {
+            const fiberNode = getFiberNode(element);
+            if (!fiberNode) return null;
+            
+            let current = fiberNode;
+            while (current) {
+              if (current.memoizedProps?.onChange) {
+                return current.memoizedProps;
+              }
+              current = current.return;
             }
+            return null;
+          };
+
+          // Fill username using React onChange
+          const usernameProps = getReactProps(usernameField);
+          if (usernameProps?.onChange) {
+            usernameField.value = USERNAME;
+            usernameProps.onChange({
+              target: usernameField,
+              currentTarget: usernameField,
+              type: 'change',
+              bubbles: true,
+              cancelable: true,
+              defaultPrevented: false,
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              isPropagationStopped: () => false,
+              persist: () => {}
+            });
+            console.log('WebUntis: Username filled via React:', USERNAME);
           }
-          
-          if (usernameField && usernameField.value === '') {
-            usernameField.value = "$escapedEmail";
-            usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-            usernameField.dispatchEvent(new Event('change', { bubbles: true }));
-            usernameField.dispatchEvent(new Event('blur', { bubbles: true }));
-            console.log('WebUntis: Username filled');
-          } else {
-            console.log('WebUntis: Username field not found or already filled');
+
+          // Wait a bit before password
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Fill password using React onChange
+          const passwordProps = getReactProps(passwordField);
+          if (passwordProps?.onChange) {
+            passwordField.value = PASSWORD;
+            passwordProps.onChange({
+              target: passwordField,
+              currentTarget: passwordField,
+              type: 'change',
+              bubbles: true,
+              cancelable: true,
+              defaultPrevented: false,
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              isPropagationStopped: () => false,
+              persist: () => {}
+            });
+            console.log('WebUntis: Password filled via React');
           }
-          
-          // Find and fill password field
-          const passwordField = document.querySelector('input[type="password"]');
-          if (passwordField && passwordField.value === '') {
-            passwordField.value = "$escapedPassword";
-            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
-            console.log('WebUntis: Password filled');
-          } else {
-            console.log('WebUntis: Password field not found or already filled');
-          }
-          
-          // Auto-click login button if both fields are filled
-          if (usernameField && passwordField && usernameField.value && passwordField.value) {
-            const loginButton = document.querySelector('button[type="submit"], button[id*="login"], input[type="submit"]');
-            if (loginButton) {
-              setTimeout(() => {
-                console.log('WebUntis: Clicking login button');
-                loginButton.click();
-                
-                // Phase 2 overlay closing will be handled separately after navigation
-                console.log('WebUntis: Phase 2 will be triggered after page load');
-              }, 300);
+
+          // Wait for button to become enabled
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Submit form if button is enabled
+          if (!submitButton.disabled) {
+            console.log('WebUntis: Button enabled, submitting form');
+            const formProps = getReactProps(form);
+            if (formProps?.onSubmit) {
+              formProps.onSubmit({
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                target: form,
+                currentTarget: form,
+                nativeEvent: new Event('submit')
+              });
+            } else {
+              const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+              form.dispatchEvent(submitEvent);
             }
+
+            // Wait 2 seconds then check for authenticator page
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Only reload if we're not on the authenticator page
+            const authLabel = document.querySelector('.un-input-group__label');
+            if (authLabel?.textContent !== 'Bestätigungscode') {
+              window.location.reload();
+            }
+            return true;
+          } else {
+            console.log('WebUntis: Button still disabled after React onChange');
+            return false;
           }
         } catch (error) {
           console.error('WebUntis injection error:', error);
+          return false;
         }
       })();
     ''';
