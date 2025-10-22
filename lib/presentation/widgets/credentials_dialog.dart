@@ -10,7 +10,7 @@ import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/core/utils/validators.dart';
 import 'package:bbzcloud_mobil/data/models/credentials.dart';
-import 'package:bbzcloud_mobil/data/models/user.dart';
+import 'package:bbzcloud_mobil/data/models/user.dart' show User, UserRole;
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 
@@ -54,7 +54,7 @@ class _CredentialsDialogState extends ConsumerState<CredentialsDialog> {
         }
       });
       
-      final credentials = await CredentialService.instance.load();
+      final credentials = await CredentialService.instance.loadCredentials();
       
       if (mounted) {
         setState(() {
@@ -100,7 +100,7 @@ class _CredentialsDialogState extends ConsumerState<CredentialsDialog> {
             : null,
       );
 
-      await CredentialService.instance.save(credentials);
+      await CredentialService.instance.saveCredentials(credentials);
 
       if (mounted) {
         Navigator.pop(context, true);
@@ -202,7 +202,17 @@ class _CredentialsDialogState extends ConsumerState<CredentialsDialog> {
                                 hintText: 'vorname.nachname@bbz-rd-eck.de',
                                 prefixIcon: Icon(Icons.email),
                               ),
-                              validator: Validators.email,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'E-Mail-Adresse ist erforderlich';
+                                }
+                                try {
+                                  Validators.validateEmail(value);
+                                  return null;
+                                } catch (e) {
+                                  return 'Ungültige E-Mail-Adresse';
+                                }
+                              },
                             ),
                             const SizedBox(height: AppSpacing.md),
 
@@ -275,7 +285,12 @@ class _CredentialsDialogState extends ConsumerState<CredentialsDialog> {
                                 ),
                                 validator: (value) {
                                   if (value != null && value.isNotEmpty) {
-                                    return Validators.email(value);
+                                    try {
+                                      Validators.validateEmail(value);
+                                      return null;
+                                    } catch (e) {
+                                      return 'Ungültige E-Mail-Adresse';
+                                    }
                                   }
                                   return null;
                                 },
