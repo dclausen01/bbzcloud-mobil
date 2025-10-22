@@ -107,57 +107,96 @@ class InjectionScripts {
   );
 
   /// WebUntis-specific injection - Phase 2: Close overlay "X" AFTER login
+  /// Uses exact selectors from BBZCloud Mobile desktop app
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
+        let attemptCount = 0;
+        const maxAttempts = 30;
+        
         function closeOverlay() {
+          attemptCount++;
+          let foundAndClicked = false;
+          
           try {
-            console.log('WebUntis Phase 2: Attempting to close overlay');
+            console.log('WebUntis Phase 2: Attempting to close overlay (attempt ' + attemptCount + ')');
             
-            // Find and click close buttons (X button)
-            const closeButtons = document.querySelectorAll(
-              'button[class*="close"], button[aria-label*="close"], button[aria-label*="Close"], ' +
-              '[class*="close-button"], [class*="closeButton"], ' +
-              'button:has(svg[class*="close"]), button:has([class*="icon-close"])'
-            );
+            // Use exact selectors from desktop app BBZCloud Mobile
+            const closeSelectors = [
+              '[class*="banner"] [class*="close"]',
+              '[class*="overlay"] [class*="close"]',
+              '[class*="notification"] [class*="close"]',
+              'button[aria-label*="close" i]',
+              'button[aria-label*="schließen" i]',
+              'button[title*="close" i]',
+              'button[title*="schließen" i]',
+              'button:has(svg[class*="close"])',
+              'button:has([class*="close"])',
+              '[style*="position: absolute"][style*="right"][style*="top"] button',
+              '[style*="position: fixed"][style*="right"][style*="top"] button'
+            ];
             
-            for (const button of closeButtons) {
-              const parent = button.closest('[role="dialog"], [class*="modal"], [class*="overlay"], [class*="banner"]');
-              if (parent && window.getComputedStyle(parent).display !== 'none') {
-                console.log('WebUntis Phase 2: Clicking close button (X)');
-                button.click();
-                return true;
+            for (const selector of closeSelectors) {
+              try {
+                const buttons = document.querySelectorAll(selector);
+                for (const button of buttons) {
+                  if (button && button.offsetParent !== null) {
+                    // Check for close icon (X symbols)
+                    const hasCloseIcon = 
+                      button.textContent.includes('×') || 
+                      button.textContent.includes('✕') ||
+                      button.innerHTML.includes('close') ||
+                      button.className.includes('close');
+                    
+                    if (hasCloseIcon) {
+                      console.log('WebUntis Phase 2: Clicking close button with selector:', selector);
+                      button.click();
+                      foundAndClicked = true;
+                      break;
+                    }
+                  }
+                }
+                if (foundAndClicked) break;
+              } catch (e) {
+                continue;
               }
             }
             
-            // Also try to remove any overlay backdrops
-            const overlays = document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="mask"]');
-            for (const overlay of overlays) {
-              const style = window.getComputedStyle(overlay);
-              if (style.display !== 'none' && style.visibility !== 'hidden') {
-                console.log('WebUntis Phase 2: Hiding overlay backdrop');
-                overlay.style.display = 'none';
-                return true;
+            // Also try to remove overlay backdrops
+            if (!foundAndClicked) {
+              const overlays = document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="mask"]');
+              for (const overlay of overlays) {
+                const style = window.getComputedStyle(overlay);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                  console.log('WebUntis Phase 2: Hiding overlay backdrop');
+                  overlay.style.display = 'none';
+                  foundAndClicked = true;
+                  break;
+                }
               }
             }
           } catch (error) {
             console.error('WebUntis Phase 2 error:', error);
           }
-          return false;
+          
+          // Continue trying if not found and under max attempts
+          if (!foundAndClicked && attemptCount < maxAttempts) {
+            setTimeout(closeOverlay, 500);
+          } else if (foundAndClicked) {
+            console.log('WebUntis Phase 2: Successfully closed overlay');
+          } else {
+            console.log('WebUntis Phase 2: Max attempts reached without finding overlay');
+          }
+          
+          return foundAndClicked;
         }
         
-        // Wait a bit for login to process, then close overlay
-        setTimeout(() => {
-          if (!closeOverlay()) {
-            // Try again if not successful
-            setTimeout(closeOverlay, 1000);
-            setTimeout(closeOverlay, 2000);
-          }
-        }, 1500);
+        // Start after short delay
+        setTimeout(closeOverlay, 1000);
       })();
     ''',
     delay: 0,
-    description: 'Phase 2: Close overlay after login',
+    description: 'Phase 2: Close overlay after login (Desktop app selectors)',
   );
 
   /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
@@ -403,7 +442,7 @@ class InjectionScripts {
     ''';
   }
 
-  /// Schul.cloud credential injection with scroll fix
+  /// Schul.cloud credential injection with precise selectors
   static String getSchulcloudInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -411,9 +450,9 @@ class InjectionScripts {
     return '''
       (function() {
         try {
-          console.log('schul.cloud: Starting credential injection');
+          console.log('schul.cloud: Starting credential injection v2.0');
           
-          // Apply scroll fix - use string concatenation instead of template literals
+          // Apply scroll fix
           const style = document.createElement('style');
           const cssRules = [
             '[class*="outer-scroller"],',
@@ -437,124 +476,117 @@ class InjectionScripts {
           document.head.appendChild(style);
           console.log('schul.cloud: Scroll fix applied');
           
-          // Store credentials as constants to avoid event object issues
+          // Store credentials as constants
           const EMAIL_VALUE = "$escapedEmail";
           const PASSWORD_VALUE = "$escapedPassword";
           
-          // Wait for Angular to load
-          function attemptFill() {
-            // Try multiple selectors for email field (schul.cloud uses material design)
-            const emailSelectors = [
-              'input[type="email"]',
-              'input[name="email"]',
-              'input[name="username"]',
-              'input[formcontrolname="email"]',
-              'input[formcontrolname="username"]',
-              'input[placeholder*="mail" i]',
-              'input[placeholder*="benutzername" i]',
-              'input[id*="email"]',
-              'input[id*="username"]',
-              'mat-form-field input[type="email"]',
-              'mat-form-field input:not([type="password"])'
-            ];
+          // Phase 1: Fill email and click "Weiter"
+          async function fillEmailAndProceed() {
+            console.log('schul.cloud: Phase 1 - Email');
             
-            let emailField = null;
-            for (const selector of emailSelectors) {
-              emailField = document.querySelector(selector);
-              if (emailField && emailField.offsetParent !== null) {
-                break;
-              }
-            }
+            // Find email field by ID (most reliable)
+            const emailField = document.querySelector('input#username[type="text"]');
             
-            if (emailField && emailField.value === '') {
-              // Set value directly from constant, not from event
+            if (emailField && emailField.offsetParent !== null && emailField.value === '') {
               emailField.value = EMAIL_VALUE;
-              // Create proper events
-              const inputEvent = new Event('input', { bubbles: true });
-              const changeEvent = new Event('change', { bubbles: true });
-              const blurEvent = new Event('blur', { bubbles: true });
+              emailField.dispatchEvent(new Event('input', { bubbles: true }));
+              emailField.dispatchEvent(new Event('change', { bubbles: true }));
+              emailField.dispatchEvent(new Event('blur', { bubbles: true }));
               
-              emailField.dispatchEvent(inputEvent);
-              emailField.dispatchEvent(changeEvent);
-              emailField.dispatchEvent(blurEvent);
-              
-              // Trigger Angular events
               try {
                 emailField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
               } catch (e) {}
               
-              console.log('schul.cloud: Email filled with:', EMAIL_VALUE);
-            }
-            
-            // Find and fill password field
-            const passwordSelectors = [
-              'input[type="password"]',
-              'input[formcontrolname="password"]',
-              'mat-form-field input[type="password"]'
-            ];
-            
-            let passwordField = null;
-            for (const selector of passwordSelectors) {
-              passwordField = document.querySelector(selector);
-              if (passwordField && passwordField.offsetParent !== null) {
-                break;
+              console.log('schul.cloud: Email filled:', EMAIL_VALUE);
+              
+              // Wait for Angular to process
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Click "Weiter" button
+              const weiterButton = document.querySelector('button.btn.btn-contained[type="submit"]');
+              if (weiterButton && !weiterButton.disabled) {
+                console.log('schul.cloud: Clicking Weiter button');
+                weiterButton.click();
+                return true;
+              } else {
+                console.log('schul.cloud: Weiter button not found or disabled');
               }
             }
+            return false;
+          }
+          
+          // Phase 2: Fill password, check checkbox, and click "Anmelden mit Passwort"
+          async function fillPasswordAndLogin() {
+            console.log('schul.cloud: Phase 2 - Password');
             
-            if (passwordField && passwordField.value === '') {
-              // Set value directly from constant, not from event
+            // Find password field
+            const passwordField = document.querySelector('input[type="password"]');
+            
+            if (passwordField && passwordField.offsetParent !== null && passwordField.value === '') {
               passwordField.value = PASSWORD_VALUE;
-              // Create proper events
-              const inputEvent = new Event('input', { bubbles: true });
-              const changeEvent = new Event('change', { bubbles: true });
-              const blurEvent = new Event('blur', { bubbles: true });
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+              passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
               
-              passwordField.dispatchEvent(inputEvent);
-              passwordField.dispatchEvent(changeEvent);
-              passwordField.dispatchEvent(blurEvent);
-              
-              // Trigger Angular events
               try {
                 passwordField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
               } catch (e) {}
               
               console.log('schul.cloud: Password filled');
-            }
-            
-            // Auto-click login button if both fields are filled
-            if (emailField && passwordField && emailField.value && passwordField.value) {
-              const buttonSelectors = [
-                'button[type="submit"]',
-                'button[class*="login" i]',
-                'button[class*="submit" i]',
-                'button[class*="anmelden" i]',
-                'button mat-button[type="submit"]',
-                'input[type="submit"]'
-              ];
               
-              let loginButton = null;
-              for (const selector of buttonSelectors) {
-                loginButton = document.querySelector(selector);
-                if (loginButton && loginButton.offsetParent !== null) {
-                  break;
+              // Check "Eingeloggt bleiben" checkbox
+              const checkbox = document.querySelector('input[type="checkbox"]');
+              if (checkbox && !checkbox.checked) {
+                checkbox.checked = true;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('schul.cloud: Checkbox checked');
+              }
+              
+              // Wait for Angular to process
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Click "Anmelden mit Passwort" span (it's clickable!)
+              const loginSpans = document.querySelectorAll('span.header');
+              for (const span of loginSpans) {
+                if (span.textContent && span.textContent.includes('Anmelden mit Passwort')) {
+                  console.log('schul.cloud: Clicking Anmelden mit Passwort');
+                  span.click();
+                  return true;
                 }
               }
               
-              if (loginButton) {
-                setTimeout(() => {
-                  console.log('schul.cloud: Clicking login button');
-                  loginButton.click();
-                }, 500);
+              // Fallback: Try button with type submit
+              const submitButton = document.querySelector('button[type="submit"]');
+              if (submitButton && !submitButton.disabled) {
+                console.log('schul.cloud: Clicking submit button (fallback)');
+                submitButton.click();
+                return true;
               }
+            }
+            return false;
+          }
+          
+          // Execute phases with proper delays
+          async function executeLogin() {
+            // Try Phase 1 (email page)
+            if (await fillEmailAndProceed()) {
+              console.log('schul.cloud: Phase 1 completed, waiting for Phase 2');
+              // Wait for navigation to password page
+              setTimeout(async () => {
+                await fillPasswordAndLogin();
+              }, 2000);
+            } else {
+              // Maybe we're already on password page
+              console.log('schul.cloud: Checking if on password page');
+              setTimeout(async () => {
+                await fillPasswordAndLogin();
+              }, 1000);
             }
           }
           
-          // Try immediately
-          attemptFill();
-          
-          // Retry after delays (for Angular/SPA)
-          setTimeout(attemptFill, 1000);
-          setTimeout(attemptFill, 2000);
+          // Start with delays for Angular
+          setTimeout(executeLogin, 500);
+          setTimeout(executeLogin, 1500);
           
         } catch (error) {
           console.error('Schul.cloud injection error:', error);
@@ -791,6 +823,84 @@ class InjectionScripts {
     ''';
   }
 
+  /// Taskcards credential injection with precise login form targeting
+  static String getTaskcardsInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email);
+    final escapedPassword = _escapeJs(password);
+    
+    return '''
+      (function() {
+        try {
+          console.log('Taskcards: Starting credential injection');
+          
+          // Target ONLY fields within login/auth containers
+          const loginContainerSelectors = [
+            'form[action*="login"]',
+            'form[class*="login"]',
+            'form[class*="auth"]',
+            'div[class*="login-form"]',
+            'div[class*="auth-form"]',
+            'div[id*="login"]',
+            'div[id*="auth"]'
+          ];
+          
+          let loginContainer = null;
+          for (const selector of loginContainerSelectors) {
+            loginContainer = document.querySelector(selector);
+            if (loginContainer && loginContainer.offsetParent !== null) {
+              console.log('Taskcards: Found login container with:', selector);
+              break;
+            }
+          }
+          
+          if (!loginContainer) {
+            console.log('Taskcards: No login container found, aborting to avoid filling search fields');
+            return;
+          }
+          
+          // Now ONLY look for fields WITHIN the login container
+          const emailField = loginContainer.querySelector(
+            'input[type="email"], input[type="text"][name*="email"], input[id*="email"], input[name*="username"]'
+          );
+          
+          if (emailField && emailField.value === '') {
+            emailField.value = "$escapedEmail";
+            emailField.dispatchEvent(new Event('input', { bubbles: true }));
+            emailField.dispatchEvent(new Event('change', { bubbles: true }));
+            emailField.dispatchEvent(new Event('blur', { bubbles: true }));
+            console.log('Taskcards: Email filled in login form');
+          }
+          
+          // Password field within login container
+          const passwordField = loginContainer.querySelector('input[type="password"]');
+          if (passwordField && passwordField.value === '') {
+            passwordField.value = "$escapedPassword";
+            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
+            console.log('Taskcards: Password filled in login form');
+          }
+          
+          // Auto-click login button within container
+          if (emailField && passwordField && emailField.value && passwordField.value) {
+            const loginButton = loginContainer.querySelector(
+              'button[type="submit"], input[type="submit"], button[class*="login"], button[class*="submit"]'
+            );
+            
+            if (loginButton && !loginButton.disabled) {
+              setTimeout(() => {
+                console.log('Taskcards: Clicking login button');
+                loginButton.click();
+              }, 300);
+            }
+          }
+        } catch (error) {
+          console.error('Taskcards injection error:', error);
+        }
+      })();
+    ''';
+  }
+
   /// Generic fallback injection for unknown apps
   static String getGenericInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
@@ -853,6 +963,9 @@ class InjectionScripts {
       
       case 'outlook':
         return getOutlookInjection(email, password);
+      
+      case 'taskcards':
+        return getTaskcardsInjection(email, password);
       
       default:
         // Use generic injection for unknown apps
