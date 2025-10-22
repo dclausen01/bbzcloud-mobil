@@ -104,7 +104,7 @@ class DownloadService {
           logger.info('Filename from UTF-8 Content-Disposition: $filename');
         } else {
           // Fallback to regular filename with or without quotes
-          final filenamePattern = RegExp(r'filename=["']?([^"';]+)["']?');
+          final filenamePattern = RegExp(r'filename="?([^";]+)"?');
           final filenameMatch = filenamePattern.firstMatch(contentDisposition);
           if (filenameMatch != null && filenameMatch.group(1) != null) {
             filename = filenameMatch.group(1)!.trim();
