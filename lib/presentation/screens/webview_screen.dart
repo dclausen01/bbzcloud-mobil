@@ -1,25 +1,30 @@
 /// BBZCloud Mobile - WebView Screen
 /// 
-/// Screen for displaying web apps with JavaScript injection
+/// Screen for displaying web apps with JavaScript injection and app switcher
 /// 
-/// @version 0.1.0
+/// @version 0.2.0
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
+import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
 
 class WebViewScreen extends ConsumerStatefulWidget {
   final String title;
   final String url;
   final bool requiresAuth;
+  final String? appId;
 
   const WebViewScreen({
     super.key,
     required this.title,
     required this.url,
     this.requiresAuth = false,
+    this.appId,
   });
 
   @override
@@ -32,6 +37,26 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   String? _currentUrl;
   bool _canGoBack = false;
   bool _canGoForward = false;
+  bool _showAppSwitcher = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _addToStack();
+  }
+
+  void _addToStack() {
+    if (widget.appId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(webViewStackProvider.notifier).addOrUpdateWebView(
+              id: widget.appId!,
+              title: widget.title,
+              url: widget.url,
+              requiresAuth: widget.requiresAuth,
+            );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,77 +108,105 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Loading Progress Bar
-          if (_loadingProgress < 1.0)
-            LinearProgressIndicator(
-              value: _loadingProgress,
-              minHeight: 3,
-            ),
-          
-          // WebView
-          Expanded(
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(
-                url: WebUri(widget.url),
-              ),
-              initialSettings: InAppWebViewSettings(
-                javaScriptEnabled: true,
-                javaScriptCanOpenWindowsAutomatically: true,
-                mediaPlaybackRequiresUserGesture: false,
-                useHybridComposition: true,
-                // SECURITY: Disabled file access from URLs to prevent XSS
-                allowFileAccessFromFileURLs: false,
-                allowUniversalAccessFromFileURLs: false,
-                // User Agent
-                userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0',
-              ),
-              onWebViewCreated: (controller) {
-                _webViewController = controller;
-              },
-              onLoadStart: (controller, url) {
-                setState(() {
-                  _currentUrl = url.toString();
-                  _loadingProgress = 0;
-                });
-              },
-              onLoadStop: (controller, url) async {
-                setState(() {
-                  _loadingProgress = 1.0;
-                  _currentUrl = url.toString();
-                });
-                
-                // Update navigation buttons
-                _updateNavigationButtons();
-                
-                // Inject JavaScript if auth is required
-                if (widget.requiresAuth) {
-                  await _injectAuthScript(controller);
-                }
-              },
-              onProgressChanged: (controller, progress) {
-                setState(() {
-                  _loadingProgress = progress / 100;
-                });
-              },
-              onUpdateVisitedHistory: (controller, url, androidIsReload) {
-                _updateNavigationButtons();
-              },
-              onDownloadStartRequest: (controller, request) {
-                // TODO: Handle downloads
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Download: ${request.url}'),
+          Column(
+            children: [
+              // Loading Progress Bar
+              if (_loadingProgress < 1.0)
+                LinearProgressIndicator(
+                  value: _loadingProgress,
+                  minHeight: 3,
+                ),
+              
+              // WebView
+              Expanded(
+                child: InAppWebView(
+                  initialUrlRequest: URLRequest(
+                    url: WebUri(widget.url),
                   ),
-                );
+                  initialSettings: InAppWebViewSettings(
+                    javaScriptEnabled: true,
+                    javaScriptCanOpenWindowsAutomatically: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                    useHybridComposition: true,
+                    allowFileAccessFromFileURLs: false,
+                    allowUniversalAccessFromFileURLs: false,
+                    userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0',
+                  ),
+                  onWebViewCreated: (controller) {
+                    _webViewController = controller;
+                  },
+                  onLoadStart: (controller, url) {
+                    setState(() {
+                      _currentUrl = url.toString();
+                      _loadingProgress = 0;
+                    });
+                  },
+                  onLoadStop: (controller, url) async {
+                    setState(() {
+                      _loadingProgress = 1.0;
+                      _currentUrl = url.toString();
+                    });
+                    
+                    _updateNavigationButtons();
+                    
+                    if (widget.requiresAuth) {
+                      await _injectAuthScript(controller);
+                    }
+                  },
+                  onProgressChanged: (controller, progress) {
+                    setState(() {
+                      _loadingProgress = progress / 100;
+                    });
+                  },
+                  onUpdateVisitedHistory: (controller, url, androidIsReload) {
+                    _updateNavigationButtons();
+                  },
+                  onDownloadStartRequest: (controller, request) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Download: ${request.url}'),
+                      ),
+                    );
+                  },
+                  onConsoleMessage: (controller, consoleMessage) {
+                    debugPrint('Console: ${consoleMessage.message}');
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // Draggable Overlay Button
+          DraggableOverlayButton(
+            onTap: () {
+              setState(() {
+                _showAppSwitcher = true;
+              });
+            },
+            onLongPress: () {
+              // Long press: Go back to home
+              ref.read(webViewStackProvider.notifier).clearCurrent();
+              Navigator.of(context).pop();
+            },
+          ),
+
+          // App Switcher Overlay
+          if (_showAppSwitcher)
+            AppSwitcherOverlay(
+              onAppSelected: (id, title, url, requiresAuth) {
+                setState(() {
+                  _showAppSwitcher = false;
+                });
+                _switchToApp(id, title, url, requiresAuth);
               },
-              onConsoleMessage: (controller, consoleMessage) {
-                // Log console messages for debugging
-                debugPrint('Console: ${consoleMessage.message}');
+              onClose: () {
+                setState(() {
+                  _showAppSwitcher = false;
+                });
               },
             ),
-          ),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
@@ -177,10 +230,33 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.home),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                ref.read(webViewStackProvider.notifier).clearCurrent();
+                Navigator.of(context).pop();
+              },
               tooltip: 'Zur Startseite',
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Switch to another app
+  void _switchToApp(String id, String title, String url, bool requiresAuth) {
+    // Check if switching to same app
+    if (id == widget.appId) {
+      return;
+    }
+
+    // Replace current screen with new WebView
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => WebViewScreen(
+          appId: id,
+          title: title,
+          url: url,
+          requiresAuth: requiresAuth,
         ),
       ),
     );
@@ -200,11 +276,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     }
   }
 
-  /// Securely inject authentication script with credentials
-  /// SECURITY: Uses callAsyncJavaScript to safely pass credentials without XSS risks
   Future<void> _injectAuthScript(InAppWebViewController controller) async {
     try {
-      // Get credentials
       final credentials = await CredentialService.instance.loadCredentials();
       
       if (!credentials.hasBasicCredentials) {
@@ -212,8 +285,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
         return;
       }
 
-      // SECURITY: Use callAsyncJavaScript to pass credentials safely as arguments
-      // This prevents XSS vulnerabilities from string interpolation
       await controller.callAsyncJavaScript(
         functionBody: '''
           return new Promise((resolve, reject) => {
@@ -222,7 +293,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
               const password = arguments[1];
               
               function fillLoginForm() {
-                // Try to find email/username field
                 const emailField = document.querySelector(
                   'input[type="email"], input[name*="email"], input[name*="user"], input[id*="email"], input[id*="user"]'
                 );
@@ -233,7 +303,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                   emailField.dispatchEvent(new Event('change', { bubbles: true }));
                 }
                 
-                // Try to find password field
                 const passwordField = document.querySelector('input[type="password"]');
                 if (passwordField && passwordField.value === '' && password) {
                   passwordField.value = password;
@@ -244,7 +313,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                 resolve({ filled: true });
               }
               
-              // Wait for page to be ready
               if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', fillLoginForm);
               } else {
@@ -264,7 +332,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       logger.info('Auth script injected successfully for ${widget.title}');
     } catch (error, stackTrace) {
       logger.error('Error injecting auth script', error, stackTrace);
-      // Don't show error to user as this is a convenience feature
     }
   }
 

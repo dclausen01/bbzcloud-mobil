@@ -279,15 +279,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _handleAppTap(BuildContext context, dynamic app) {
+    String id;
     String title;
     String url;
     bool requiresAuth = false;
 
     if (app is AppItem) {
+      id = app.id;
       title = app.title;
       url = app.url;
       requiresAuth = app.requiresAuth;
     } else if (app is CustomApp) {
+      id = app.id;
       title = app.title;
       url = app.url;
       requiresAuth = false;
@@ -299,6 +302,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context,
       RouteAnimations.slideFromBottom(
         WebViewScreen(
+          appId: id,
           title: title,
           url: url,
           requiresAuth: requiresAuth,
