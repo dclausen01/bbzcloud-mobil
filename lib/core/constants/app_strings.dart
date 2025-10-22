@@ -35,7 +35,7 @@ class AppStrings {
   static const firstTimeSetup = 'Richten Sie Ihr Konto ein';
 
   // UI Labels
-  static const appTitle = 'BBZCloud Mobile';
+  static const appTitle = 'BBZ Cloud';
   static const home = 'Start';
   static const settings = 'Einstellungen';
   static const todos = 'Aufgaben';

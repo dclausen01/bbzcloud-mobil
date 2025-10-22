@@ -60,7 +60,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Assets werden später hinzugefügt
-  # assets:
-  #   - assets/icons/
-  #   - assets/images/
+  assets:
+    - assets/icon.png
