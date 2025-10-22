@@ -26,16 +26,24 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _bbbPasswordController = TextEditingController();
+  final _webuntisEmailController = TextEditingController();
+  final _webuntisPasswordController = TextEditingController();
   
   UserRole _selectedRole = UserRole.student;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureBbbPassword = true;
+  bool _obscureWebuntisPassword = true;
   bool _saveCredentials = true;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _bbbPasswordController.dispose();
+    _webuntisEmailController.dispose();
+    _webuntisPasswordController.dispose();
     super.dispose();
   }
 
@@ -188,6 +196,108 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                     ),
                   ],
                 ),
+                
+                // Teacher-specific fields
+                if (_selectedRole == UserRole.teacher) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  ExpansionTile(
+                    title: const Text('Zusätzliche Zugangsdaten (Lehrkräfte)'),
+                    subtitle: const Text('Für BBB und WebUntis'),
+                    initiallyExpanded: false,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // BBB Password
+                            const Text(
+                              'BigBlueButton',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            TextFormField(
+                              controller: _bbbPasswordController,
+                              obscureText: _obscureBbbPassword,
+                              decoration: InputDecoration(
+                                labelText: 'BBB-Passwort',
+                                hintText: 'Optional, falls abweichend',
+                                prefixIcon: const Icon(Icons.videocam),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscureBbbPassword
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscureBbbPassword = !_obscureBbbPassword;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            
+                            // WebUntis credentials
+                            const Text(
+                              'WebUntis',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            TextFormField(
+                              controller: _webuntisEmailController,
+                              keyboardType: TextInputType.text,
+                              decoration: const InputDecoration(
+                                labelText: 'WebUntis-Benutzername',
+                                hintText: 'Optional, falls abweichend',
+                                prefixIcon: Icon(Icons.person),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            TextFormField(
+                              controller: _webuntisPasswordController,
+                              obscureText: _obscureWebuntisPassword,
+                              decoration: InputDecoration(
+                                labelText: 'WebUntis-Passwort',
+                                hintText: 'Optional, falls abweichend',
+                                prefixIcon: const Icon(Icons.lock),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscureWebuntisPassword
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscureWebuntisPassword = !_obscureWebuntisPassword;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'Diese Felder nur ausfüllen, wenn Ihre WebUntis-Zugangsdaten von der Haupt-E-Mail abweichen.',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xxl),
                 
                 // Submit Button
@@ -251,9 +361,16 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
       // Save credentials if provided and checkbox is checked
       if (password.isNotEmpty && _saveCredentials) {
+        final bbbPassword = _bbbPasswordController.text.trim();
+        final webuntisEmail = _webuntisEmailController.text.trim();
+        final webuntisPassword = _webuntisPasswordController.text.trim();
+        
         final credentials = Credentials(
           email: email,
           password: password,
+          bbbPassword: bbbPassword.isNotEmpty ? bbbPassword : null,
+          webuntisEmail: webuntisEmail.isNotEmpty ? webuntisEmail : null,
+          webuntisPassword: webuntisPassword.isNotEmpty ? webuntisPassword : null,
         );
         await CredentialService.instance.saveCredentials(credentials);
       }

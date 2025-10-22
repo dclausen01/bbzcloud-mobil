@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
+import 'package:bbzcloud_mobil/services/injection_scripts.dart';
 import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
@@ -151,6 +152,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     
                     _updateNavigationButtons();
                     
+                    // Run post-load scripts FIRST (e.g., dialog dismissal for WebUntis)
+                    // This must happen before credential injection to avoid dialogs blocking login
+                    if (widget.appId != null) {
+                      await _runPostLoadScript(controller);
+                    }
+                    
+                    // Then inject auth credentials if required
                     if (widget.requiresAuth) {
                       await _injectAuthScript(controller);
                     }
@@ -285,57 +293,40 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
         return;
       }
 
-      await controller.callAsyncJavaScript(
-        functionBody: '''
-          return new Promise((resolve, reject) => {
-            try {
-              const username = arguments[0];
-              const password = arguments[1];
-              
-              function fillLoginForm() {
-                // Find username field (can be email, user, or text input)
-                const usernameField = document.querySelector(
-                  'input[type="text"]:not([type="password"]), input[type="email"], input[name*="email"], input[name*="user"], input[name*="login"], input[id*="email"], input[id*="user"], input[id*="login"]'
-                );
-                
-                if (usernameField && usernameField.value === '' && username) {
-                  usernameField.value = username;
-                  usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-                  usernameField.dispatchEvent(new Event('change', { bubbles: true }));
-                  usernameField.dispatchEvent(new Event('blur', { bubbles: true }));
-                }
-                
-                // Find password field
-                const passwordField = document.querySelector('input[type="password"]');
-                if (passwordField && passwordField.value === '' && password) {
-                  passwordField.value = password;
-                  passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-                  passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-                  passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
-                }
-                
-                resolve({ filled: true });
-              }
-              
-              if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', fillLoginForm);
-              } else {
-                fillLoginForm();
-              }
-            } catch (error) {
-              reject(error);
-            }
-          });
-        ''',
-        arguments: {
-          'username': credentials.email,
-          'password': credentials.password ?? '',
-        },
+      // Get app-specific injection script
+      final String? injectionScript = InjectionScripts.getInjectionForApp(
+        widget.appId ?? '',
+        credentials.email!,
+        credentials.password ?? '',
+        bbbPassword: credentials.bbbPassword,
+        webuntisEmail: credentials.webuntisEmail,
+        webuntisPassword: credentials.webuntisPassword,
       );
-      
-      logger.info('Auth script injected successfully for ${widget.title}');
+
+      if (injectionScript != null) {
+        await controller.evaluateJavascript(source: injectionScript);
+        logger.info('App-specific auth script injected for ${widget.title} (${widget.appId})');
+      }
     } catch (error, stackTrace) {
       logger.error('Error injecting auth script', error, stackTrace);
+    }
+  }
+
+  Future<void> _runPostLoadScript(InAppWebViewController controller) async {
+    try {
+      final postLoadScript = InjectionScripts.getPostLoadScriptForApp(widget.appId!);
+      
+      if (postLoadScript != null) {
+        // Wait for the specified delay before running the script
+        if (postLoadScript.delay > 0) {
+          await Future.delayed(Duration(milliseconds: postLoadScript.delay));
+        }
+        
+        await controller.evaluateJavascript(source: postLoadScript.js);
+        logger.info('Post-load script executed for ${widget.title}: ${postLoadScript.description}');
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error running post-load script', error, stackTrace);
     }
   }
 
