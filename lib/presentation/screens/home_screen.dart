@@ -172,17 +172,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         key: ValueKey(appId),
                         index: index,
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: SizedBox(
-                            height: 200, // Fixed height for edit mode cards
-                            child: AppCard(
-                              app: app,
-                              onTap: () {},
-                              isEditMode: true,
-                              isVisible: isVisible,
-                              onToggleVisibility: () {
-                                ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
-                              },
+                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                // Dedicated drag handle area (left column)
+                                Container(
+                                  width: 60,
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(10),
+                                      bottomLeft: Radius.circular(10),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.drag_indicator,
+                                      size: 32,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                // App card content (right column)
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 180,
+                                    child: AppCard(
+                                      app: app,
+                                      onTap: () {},
+                                      isEditMode: true,
+                                      isVisible: isVisible,
+                                      onToggleVisibility: () {
+                                        ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

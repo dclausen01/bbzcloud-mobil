@@ -340,26 +340,27 @@ class InjectionScripts {
         try {
           console.log('schul.cloud: Starting credential injection');
           
-          // Apply scroll fix
+          // Apply scroll fix - use string concatenation instead of template literals
           const style = document.createElement('style');
-          style.textContent = \`
-            [class*="outer-scroller"],
-            [class*="navigation-item-wrapper"],
-            [class*="channel-list"],
-            [class*="chat-list"],
-            [class*="conversation-list"],
-            [class*="message-list"],
-            [class*="sidebar"],
-            div[class*="List"],
-            div[class*="Sidebar"],
-            div[class*="scroller"] {
-              overflow-y: auto !important;
-              overflow-x: hidden !important;
-              -webkit-overflow-scrolling: touch !important;
-              overscroll-behavior: contain !important;
-              touch-action: pan-y !important;
-            }
-          \`;
+          const cssRules = [
+            '[class*="outer-scroller"],',
+            '[class*="navigation-item-wrapper"],',
+            '[class*="channel-list"],',
+            '[class*="chat-list"],',
+            '[class*="conversation-list"],',
+            '[class*="message-list"],',
+            '[class*="sidebar"],',
+            'div[class*="List"],',
+            'div[class*="Sidebar"],',
+            'div[class*="scroller"] {',
+            '  overflow-y: auto !important;',
+            '  overflow-x: hidden !important;',
+            '  -webkit-overflow-scrolling: touch !important;',
+            '  overscroll-behavior: contain !important;',
+            '  touch-action: pan-y !important;',
+            '}'
+          ];
+          style.textContent = cssRules.join(' ');
           document.head.appendChild(style);
           console.log('schul.cloud: Scroll fix applied');
           
@@ -652,6 +653,11 @@ class InjectionScripts {
           // Auto-click submit/next button with comprehensive selector list
           function clickSubmitButton() {
             const buttonSelectors = [
+              // NEW: Span elements with role="button" (Outlook uses these!)
+              'span#submitButton[role="button"]',
+              'span.submit[role="button"]',
+              'span[role="button"][onclick*="submitLoginRequest"]',
+              // Original selectors
               'input[type="submit"]',
               'button[type="submit"]',
               'input[id*="idSIButton"]',
@@ -672,8 +678,14 @@ class InjectionScripts {
             for (const selector of buttonSelectors) {
               const buttons = document.querySelectorAll(selector);
               for (const btn of buttons) {
-                if (btn.offsetParent !== null && !btn.disabled) {
+                // Check visibility for both buttons and spans
+                const isVisible = btn.offsetParent !== null || 
+                                window.getComputedStyle(btn).display !== 'none';
+                const isEnabled = !btn.disabled && !btn.hasAttribute('disabled');
+                
+                if (isVisible && isEnabled) {
                   submitButton = btn;
+                  console.log('Outlook: Found button/span with selector:', selector);
                   break;
                 }
               }
@@ -681,12 +693,12 @@ class InjectionScripts {
             }
             
             if (submitButton) {
-              console.log('Outlook: Found submit button, clicking');
+              console.log('Outlook: Clicking submit element');
               submitButton.click();
               return true;
             }
             
-            console.log('Outlook: Submit button not found');
+            console.log('Outlook: Submit button/span not found');
             return false;
           }
           

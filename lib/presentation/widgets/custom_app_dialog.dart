@@ -297,6 +297,10 @@ class _CustomAppDialogState extends ConsumerState<CustomAppDialog> {
         await ref.read(customAppsProvider.notifier).addApp(app);
       }
 
+      // Force invalidate dependent providers to ensure UI updates
+      ref.invalidate(allAppsProvider);
+      ref.invalidate(visibleAppsProvider);
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
