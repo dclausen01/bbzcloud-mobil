@@ -42,6 +42,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   bool _showAppSwitcher = false;
   bool _webuntisPhase1Done = false;
   bool _webuntisLoginTriggered = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
 
   @override
   void initState() {
@@ -68,6 +70,22 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
+          // Download indicator
+          if (_isDownloading)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    value: _downloadProgress > 0 ? _downloadProgress : null,
+                    strokeWidth: 2.5,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+            ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
@@ -383,6 +401,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       logger.info('Suggested filename: ${request.suggestedFilename}');
       logger.info('Content length: ${request.contentLength}');
 
+      // Show download indicator
+      if (mounted) {
+        setState(() {
+          _isDownloading = true;
+          _downloadProgress = 0.0;
+        });
+      }
+
       // Extract headers from the request if available
       final Map<String, String> headers = {};
       
@@ -414,9 +440,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
           context: context,
           request: downloadRequest,
           onProgress: (received, total) {
-            // Progress callback - could update UI with progress
-            final percentage = total > 0 ? (received / total * 100).round() : 0;
-            logger.info('Download progress: $percentage%');
+            // Update progress indicator
+            if (mounted && total > 0) {
+              final progress = received / total;
+              setState(() {
+                _downloadProgress = progress;
+              });
+              logger.info('Download progress: ${(progress * 100).round()}%');
+            }
           },
         );
       }
@@ -431,6 +462,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
             duration: const Duration(seconds: 4),
           ),
         );
+      }
+    } finally {
+      // Hide download indicator
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _downloadProgress = 0.0;
+        });
       }
     }
   }
