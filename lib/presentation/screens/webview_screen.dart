@@ -10,6 +10,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/services/injection_scripts.dart';
+import 'package:bbzcloud_mobil/services/download_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
@@ -176,12 +177,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                   onUpdateVisitedHistory: (controller, url, androidIsReload) {
                     _updateNavigationButtons();
                   },
-                  onDownloadStartRequest: (controller, request) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Download: ${request.url}'),
-                      ),
-                    );
+                  onDownloadStartRequest: (controller, request) async {
+                    // Handle download request using DownloadService
+                    await _handleDownload(request);
                   },
                   onConsoleMessage: (controller, consoleMessage) {
                     debugPrint('Console: ${consoleMessage.message}');
@@ -375,6 +373,65 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       }
     } catch (error, stackTrace) {
       logger.error('Error in WebUntis flow', error, stackTrace);
+    }
+  }
+
+  /// Handle download request from WebView
+  Future<void> _handleDownload(DownloadStartRequest request) async {
+    try {
+      logger.info('Download request intercepted: ${request.url}');
+      logger.info('Suggested filename: ${request.suggestedFilename}');
+      logger.info('Content type: ${request.contentType}');
+      logger.info('Content length: ${request.contentLength}');
+
+      // Extract headers from the request if available
+      final Map<String, String>? headers = {};
+      
+      // Get cookies from WebView to maintain session
+      if (_webViewController != null) {
+        final cookies = await _webViewController!.getCookies(url: request.url);
+        if (cookies.isNotEmpty) {
+          final cookieString = cookies
+              .map((cookie) => '${cookie.name}=${cookie.value}')
+              .join('; ');
+          headers['Cookie'] = cookieString;
+          logger.info('Added cookies to download request');
+        }
+      }
+
+      // Create download request
+      final downloadRequest = DownloadRequest(
+        url: request.url.toString(),
+        filename: request.suggestedFilename,
+        headers: headers.isNotEmpty ? headers : null,
+      );
+
+      // Use DownloadService to download the file
+      final downloadService = DownloadService();
+      
+      if (mounted) {
+        await downloadService.downloadFile(
+          context: context,
+          request: downloadRequest,
+          onProgress: (received, total) {
+            // Progress callback - could update UI with progress
+            final percentage = total > 0 ? (received / total * 100).round() : 0;
+            logger.info('Download progress: $percentage%');
+          },
+        );
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error handling download', error, stackTrace);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download fehlgeschlagen: $error'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
