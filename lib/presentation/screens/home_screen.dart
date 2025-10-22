@@ -30,17 +30,6 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.appTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                RouteAnimations.slideFromRight(const SettingsScreen()),
-              );
-            },
-          ),
-        ],
       ),
       drawer: const AppDrawer(),
       body: userState.when(
@@ -112,8 +101,10 @@ class HomeScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Willkommen, ${user.email}',
-                        style: AppTextStyles.heading2,
+                        'Willkommen, ${user.email.split('@')[0]}',
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -122,10 +113,12 @@ class HomeScreen extends ConsumerWidget {
                           color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
                       Text(
                         AppStrings.allApps,
-                        style: AppTextStyles.heading3,
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),

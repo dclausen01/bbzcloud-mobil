@@ -39,20 +39,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
-          if (_canGoBack)
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => _webViewController?.goBack(),
-            ),
-          if (_canGoForward)
-            IconButton(
-              icon: const Icon(Icons.arrow_forward),
-              onPressed: () => _webViewController?.goForward(),
-            ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _webViewController?.reload(),
-          ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
@@ -169,6 +155,33 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _canGoBack ? () => _webViewController?.goBack() : null,
+              tooltip: 'Zurück',
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward),
+              onPressed: _canGoForward ? () => _webViewController?.goForward() : null,
+              tooltip: 'Vorwärts',
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => _webViewController?.reload(),
+              tooltip: 'Neu laden',
+            ),
+            IconButton(
+              icon: const Icon(Icons.home),
+              onPressed: () => Navigator.of(context).pop(),
+              tooltip: 'Zur Startseite',
+            ),
+          ],
+        ),
       ),
     );
   }
