@@ -32,6 +32,21 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       
+      - name: Generate app icons
+        run: flutter pub run flutter_launcher_icons
+        continue-on-error: false
+      
+      - name: Commit generated icons
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add android/app/src/main/res/mipmap-*/ || true
+          git add ios/Runner/Assets.xcassets/AppIcon.appiconset/ || true
+          git diff --quiet && git diff --staged --quiet || \
+          (git commit -m "chore: regenerate app icons [skip ci]" && git push) || true
+        continue-on-error: true
+      
       - name: Analyze code
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       

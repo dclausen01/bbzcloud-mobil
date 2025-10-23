@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/services/injection_scripts.dart';
@@ -159,11 +160,21 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                   onWebViewCreated: (controller) {
                     _webViewController = controller;
                   },
-                  onLoadStart: (controller, url) {
+                  onLoadStart: (controller, url) async {
                     setState(() {
                       _currentUrl = url.toString();
                       _loadingProgress = 0;
                     });
+                    
+                    // BBB Meeting-Link Detection: Open in system browser
+                    if (widget.appId?.toLowerCase() == 'bbb' && url != null) {
+                      if (_isBBBMeetingLink(url.toString())) {
+                        logger.info('BBB Meeting link detected, opening in system browser');
+                        await _openInSystemBrowser(url.toString());
+                        // Stop WebView navigation
+                        return NavigationActionPolicy.CANCEL;
+                      }
+                    }
                   },
                   onLoadStop: (controller, url) async {
                     setState(() {
@@ -470,6 +481,59 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
           _isDownloading = false;
           _downloadProgress = 0.0;
         });
+      }
+    }
+  }
+
+  /// Check if URL is a BBB meeting/conference link
+  bool _isBBBMeetingLink(String url) {
+    // BBB meeting patterns (from desktop app):
+    // - /join - Meeting join page
+    // - /conference - Conference room
+    // - /b/ - BBB room shortcode
+    // - greenlight - Greenlight frontend
+    return url.contains('/join') ||
+           url.contains('/conference') ||
+           url.contains('/b/') ||
+           url.contains('greenlight');
+  }
+
+  /// Open URL in system browser (for BBB meetings with camera/mic support)
+  Future<void> _openInSystemBrowser(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      
+      // Show message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('BBB-Konferenz wird im System-Browser geöffnet...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      
+      // Launch in external browser (system default)
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (launched) {
+        logger.info('BBB meeting link opened in system browser: $url');
+      } else {
+        throw Exception('Could not launch URL');
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error opening system browser', error, stackTrace);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fehler beim Öffnen des System-Browsers'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }

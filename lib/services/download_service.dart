@@ -81,6 +81,31 @@ class DownloadService {
       if (request.headers != null) {
         httpRequest.headers.addAll(request.headers!);
       }
+      
+      // Add critical headers for schul.cloud and SPA downloads
+      // These prevent 403 Forbidden errors
+      final uri = Uri.parse(request.url);
+      final baseUrl = '${uri.scheme}://${uri.host}';
+      
+      // Referer header (required for many SPA downloads)
+      if (!httpRequest.headers.containsKey('referer')) {
+        httpRequest.headers['referer'] = baseUrl;
+      }
+      
+      // Origin header (required for CORS-protected downloads)
+      if (!httpRequest.headers.containsKey('origin')) {
+        httpRequest.headers['origin'] = baseUrl;
+      }
+      
+      // X-Requested-With (identifies AJAX requests)
+      if (!httpRequest.headers.containsKey('x-requested-with')) {
+        httpRequest.headers['x-requested-with'] = 'XMLHttpRequest';
+      }
+      
+      // Accept header
+      if (!httpRequest.headers.containsKey('accept')) {
+        httpRequest.headers['accept'] = '*/*';
+      }
 
       logger.info('Sending HTTP request...');
       final response = await client.send(httpRequest);

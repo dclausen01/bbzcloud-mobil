@@ -107,7 +107,7 @@ class InjectionScripts {
   );
 
   /// WebUntis-specific injection - Phase 2: Close overlay "X" AFTER login
-  /// Uses exact selectors from BBZCloud Mobile desktop app - INCLUDING <a> elements!
+  /// Uses PRECISE selectors from actual WebUntis mobile banner HTML
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
@@ -121,29 +121,28 @@ class InjectionScripts {
           try {
             console.log('WebUntis Phase 2: Attempting to close overlay (attempt ' + attemptCount + ')');
             
-            // Use exact selectors from desktop app BBZCloud Mobile
-            // IMPORTANT: Include 'a' elements as they can be close buttons too!
+            // PRECISE selectors based on actual WebUntis mobile banner structure:
+            // <div class="mobile-banner">
+            //   <div class="mobile-banner-close">
+            //     <i class="untis-icon untis-icon-cancel">
             const closeSelectors = [
-              'a, button',  // Check ALL links and buttons first
+              // Most precise selectors first (from user-provided HTML)
+              'div.mobile-banner-close',                    // Direct close button container
+              'i.untis-icon-cancel',                         // Cancel icon itself
+              'div.mobile-banner div.mobile-banner-close',  // Full path
+              'div.mobile-banner i.untis-icon-cancel',      // Full path to icon
+              
+              // Fallback selectors from desktop app
               '[class*="banner"] [class*="close"]',
               '[class*="overlay"] [class*="close"]',
-              '[class*="notification"] [class*="close"]',
               'button[aria-label*="close" i]',
               'a[aria-label*="close" i]',
               'button[aria-label*="schließen" i]',
               'a[aria-label*="schließen" i]',
-              'button[title*="close" i]',
-              'a[title*="close" i]',
-              'button[title*="schließen" i]',
-              'a[title*="schließen" i]',
               'button:has(svg[class*="close"])',
               'a:has(svg[class*="close"])',
-              'button:has([class*="close"])',
-              'a:has([class*="close"])',
               '[style*="position: absolute"][style*="right"][style*="top"] button',
-              '[style*="position: absolute"][style*="right"][style*="top"] a',
-              '[style*="position: fixed"][style*="right"][style*="top"] button',
-              '[style*="position: fixed"][style*="right"][style*="top"] a'
+              '[style*="position: absolute"][style*="right"][style*="top"] a'
             ];
             
             for (const selector of closeSelectors) {
@@ -151,34 +150,30 @@ class InjectionScripts {
                 const elements = document.querySelectorAll(selector);
                 for (const element of elements) {
                   if (element && element.offsetParent !== null) {
-                    // Check for close icon (X symbols) - works for both <a> and <button>
-                    const text = element.textContent || '';
-                    const html = element.innerHTML || '';
-                    const className = element.className || '';
-                    
-                    const hasCloseIcon = 
-                      text.includes('×') || 
-                      text.includes('✕') ||
-                      text.toLowerCase().includes('close') ||
-                      text.toLowerCase().includes('schließen') ||
-                      html.includes('close') ||
-                      className.includes('close');
-                    
-                    if (hasCloseIcon) {
-                      console.log('WebUntis Phase 2: Clicking close element (' + element.tagName + ') with selector:', selector);
-                      element.click();
-                      foundAndClicked = true;
-                      break;
-                    }
+                    console.log('WebUntis Phase 2: Found element with selector:', selector, '- Tag:', element.tagName);
+                    element.click();
+                    foundAndClicked = true;
+                    break;
                   }
                 }
                 if (foundAndClicked) break;
               } catch (e) {
+                console.error('WebUntis Phase 2: Error with selector ' + selector + ':', e);
                 continue;
               }
             }
             
-            // Also try to remove overlay backdrops
+            // Fallback: Hide mobile-banner directly
+            if (!foundAndClicked) {
+              const mobileBanner = document.querySelector('div.mobile-banner');
+              if (mobileBanner) {
+                console.log('WebUntis Phase 2: Hiding mobile-banner directly');
+                mobileBanner.style.display = 'none';
+                foundAndClicked = true;
+              }
+            }
+            
+            // Last resort: Remove overlay backdrops
             if (!foundAndClicked) {
               const overlays = document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="mask"]');
               for (const overlay of overlays) {
@@ -212,7 +207,7 @@ class InjectionScripts {
       })();
     ''',
     delay: 0,
-    description: 'Phase 2: Close overlay after login (Desktop app selectors + <a> elements)',
+    description: 'Phase 2: Close overlay with precise mobile-banner selectors',
   );
 
   /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
@@ -459,6 +454,7 @@ class InjectionScripts {
   }
 
   /// Schul.cloud credential injection with precise selectors
+  /// Fixed [object Event] issue with multi-set approach
   static String getSchulcloudInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -466,7 +462,7 @@ class InjectionScripts {
     return '''
       (function() {
         try {
-          console.log('schul.cloud: Starting credential injection v2.0');
+          console.log('schul.cloud: Starting credential injection v3.0');
           
           // Apply scroll fix
           const style = document.createElement('style');
@@ -492,7 +488,7 @@ class InjectionScripts {
           document.head.appendChild(style);
           console.log('schul.cloud: Scroll fix applied');
           
-          // Store credentials as constants
+          // Store credentials as constants (prevents [object Event] bug)
           const EMAIL_VALUE = "$escapedEmail";
           const PASSWORD_VALUE = "$escapedPassword";
           
@@ -531,14 +527,18 @@ class InjectionScripts {
             return false;
           }
           
-          // Phase 2: Fill password, check checkbox, and click "Anmelden mit Passwort"
+          // Phase 2: Fill password with MULTI-SET approach to prevent [object Event]
           async function fillPasswordAndLogin() {
-            console.log('schul.cloud: Phase 2 - Password');
+            console.log('schul.cloud: Phase 2 - Password (multi-set approach)');
             
             // Find password field
             const passwordField = document.querySelector('input[type="password"]');
             
-            if (passwordField && passwordField.offsetParent !== null && passwordField.value === '') {
+            if (passwordField && passwordField.offsetParent !== null) {
+              // MULTI-SET APPROACH: Set password multiple times with delays
+              // This prevents Angular from overwriting with [object Event]
+              
+              // First set
               passwordField.value = PASSWORD_VALUE;
               passwordField.dispatchEvent(new Event('input', { bubbles: true }));
               passwordField.dispatchEvent(new Event('change', { bubbles: true }));
@@ -548,7 +548,19 @@ class InjectionScripts {
                 passwordField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
               } catch (e) {}
               
-              console.log('schul.cloud: Password filled');
+              console.log('schul.cloud: Password set (attempt 1)');
+              
+              // Second set after 100ms (Angular processing delay)
+              await new Promise(resolve => setTimeout(resolve, 100));
+              passwordField.value = PASSWORD_VALUE;
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('schul.cloud: Password re-set (attempt 2)');
+              
+              // Third set after 300ms (final safeguard)
+              await new Promise(resolve => setTimeout(resolve, 200));
+              passwordField.value = PASSWORD_VALUE;
+              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('schul.cloud: Password re-set (attempt 3 - final)');
               
               // Check "Eingeloggt bleiben" checkbox
               const checkbox = document.querySelector('input[type="checkbox"]');
@@ -839,7 +851,7 @@ class InjectionScripts {
     ''';
   }
 
-  /// Taskcards credential injection with precise login form targeting
+  /// Taskcards credential injection with PRECISE selector from user-provided HTML
   static String getTaskcardsInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -847,61 +859,57 @@ class InjectionScripts {
     return '''
       (function() {
         try {
-          console.log('Taskcards: Starting credential injection');
+          console.log('Taskcards: Starting credential injection with precise selectors');
           
-          // Target ONLY fields within login/auth containers
-          const loginContainerSelectors = [
-            'form[action*="login"]',
-            'form[class*="login"]',
-            'form[class*="auth"]',
-            'div[class*="login-form"]',
-            'div[class*="auth-form"]',
-            'div[id*="login"]',
-            'div[id*="auth"]'
-          ];
-          
-          let loginContainer = null;
-          for (const selector of loginContainerSelectors) {
-            loginContainer = document.querySelector(selector);
-            if (loginContainer && loginContainer.offsetParent !== null) {
-              console.log('Taskcards: Found login container with:', selector);
-              break;
-            }
-          }
-          
-          if (!loginContainer) {
-            console.log('Taskcards: No login container found, aborting to avoid filling search fields');
-            return;
-          }
-          
-          // Now ONLY look for fields WITHIN the login container
-          const emailField = loginContainer.querySelector(
-            'input[type="email"], input[type="text"][name*="email"], input[id*="email"], input[name*="username"]'
+          // PRECISE email field selector from user-provided HTML:
+          // <input tabindex="1" aria-label="Email" type="email" class="q-field__native">
+          const emailField = document.querySelector(
+            'input[type="email"][aria-label="Email"].q-field__native'
           );
           
-          if (emailField && emailField.value === '') {
+          if (emailField && emailField.offsetParent !== null && emailField.value === '') {
             emailField.value = "$escapedEmail";
             emailField.dispatchEvent(new Event('input', { bubbles: true }));
             emailField.dispatchEvent(new Event('change', { bubbles: true }));
             emailField.dispatchEvent(new Event('blur', { bubbles: true }));
-            console.log('Taskcards: Email filled in login form');
+            
+            // Trigger Quasar/Vue events
+            try {
+              emailField.dispatchEvent(new Event('update:modelValue', { bubbles: true }));
+            } catch (e) {}
+            
+            console.log('Taskcards: Email filled with precise selector');
+          } else if (!emailField) {
+            console.log('Taskcards: Email field not found - might not be on login page');
+            return;
           }
           
-          // Password field within login container
-          const passwordField = loginContainer.querySelector('input[type="password"]');
-          if (passwordField && passwordField.value === '') {
+          // Password field (still generic but within same form context)
+          const passwordField = emailField ? 
+            emailField.closest('form')?.querySelector('input[type="password"]') ||
+            document.querySelector('input[type="password"]') :
+            null;
+            
+          if (passwordField && passwordField.offsetParent !== null && passwordField.value === '') {
             passwordField.value = "$escapedPassword";
             passwordField.dispatchEvent(new Event('input', { bubbles: true }));
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
             passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
-            console.log('Taskcards: Password filled in login form');
+            
+            // Trigger Quasar/Vue events
+            try {
+              passwordField.dispatchEvent(new Event('update:modelValue', { bubbles: true }));
+            } catch (e) {}
+            
+            console.log('Taskcards: Password filled');
           }
           
-          // Auto-click login button within container
+          // Auto-click login button
           if (emailField && passwordField && emailField.value && passwordField.value) {
-            const loginButton = loginContainer.querySelector(
-              'button[type="submit"], input[type="submit"], button[class*="login"], button[class*="submit"]'
-            );
+            const form = emailField.closest('form');
+            const loginButton = form ? 
+              form.querySelector('button[type="submit"], input[type="submit"], button[class*="submit"]') :
+              document.querySelector('button[type="submit"]');
             
             if (loginButton && !loginButton.disabled) {
               setTimeout(() => {
