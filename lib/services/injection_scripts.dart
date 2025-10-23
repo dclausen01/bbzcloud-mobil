@@ -106,97 +106,42 @@ class InjectionScripts {
     description: 'Phase 1: Close initial WebUntis dialog',
   );
 
-  /// WebUntis-specific injection - Phase 2: Remove mobile banner completely
-  /// Uses MutationObserver to watch for banner re-appearance
+  /// WebUntis-specific injection - Phase 2: Hide mobile banner with CSS
+  /// Uses CSS injection (like Desktop-App) - works for current AND future elements!
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
-        console.log('WebUntis Phase 2: Starting banner removal with MutationObserver');
+        console.log('WebUntis Phase 2: Injecting CSS to hide banner');
         
-        // Function to remove banner
-        function removeBanner() {
-          let removed = false;
-          
-          try {
-            // Primary approach: Remove mobile-banner div completely
-            const mobileBanner = document.querySelector('div.mobile-banner');
-            if (mobileBanner) {
-              mobileBanner.remove();
-              console.log('WebUntis Phase 2: Banner removed!');
-              removed = true;
+        try {
+          // Create style element with CSS rules
+          const style = document.createElement('style');
+          style.textContent = `
+            /* Hide WebUntis mobile banner - applies to current and future elements */
+            div.mobile-banner,
+            .mobile-banner,
+            [class*="mobile-banner"],
+            [class*="app-banner"],
+            [class*="notification-bar"] {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              height: 0 !important;
+              overflow: hidden !important;
             }
-            
-            // Fallback: Remove any banner-like elements
-            const banners = document.querySelectorAll('[class*="banner"], [class*="notification-bar"], [class*="app-banner"]');
-            for (const banner of banners) {
-              const style = window.getComputedStyle(banner);
-              if (style.display !== 'none' && style.position === 'fixed') {
-                banner.remove();
-                console.log('WebUntis Phase 2: Found and removed banner:', banner.className);
-                removed = true;
-              }
-            }
-          } catch (error) {
-            console.error('WebUntis Phase 2 error:', error);
-          }
+          `;
           
-          return removed;
+          // Inject into head
+          document.head.appendChild(style);
+          console.log('WebUntis Phase 2: CSS injected successfully - banner hidden forever!');
+          
+        } catch (error) {
+          console.error('WebUntis Phase 2 error:', error);
         }
-        
-        // Initial removal attempts
-        removeBanner();
-        setTimeout(removeBanner, 500);
-        setTimeout(removeBanner, 1000);
-        setTimeout(removeBanner, 2000);
-        
-        // Set up MutationObserver to watch for banner re-appearance
-        const observer = new MutationObserver((mutations) => {
-          for (const mutation of mutations) {
-            if (mutation.type === 'childList') {
-              // Check if any added nodes are banners
-              for (const node of mutation.addedNodes) {
-                if (node.nodeType === 1) { // Element node
-                  const element = node;
-                  // Check if this is a banner or contains a banner
-                  if (element.classList && (
-                    element.classList.contains('mobile-banner') ||
-                    element.className.includes('banner') ||
-                    element.className.includes('notification-bar') ||
-                    element.className.includes('app-banner')
-                  )) {
-                    console.log('WebUntis Phase 2: Banner re-appeared, removing again!');
-                    element.remove();
-                  }
-                  
-                  // Also check children
-                  const childBanners = element.querySelectorAll('[class*="banner"], [class*="notification-bar"], [class*="app-banner"]');
-                  for (const childBanner of childBanners) {
-                    console.log('WebUntis Phase 2: Child banner found, removing!');
-                    childBanner.remove();
-                  }
-                }
-              }
-            }
-          }
-        });
-        
-        // Start observing the document body for changes
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true
-        });
-        
-        console.log('WebUntis Phase 2: MutationObserver active, watching for banner re-appearance');
-        
-        // Stop observing after 30 seconds (banner shouldn't appear after that)
-        setTimeout(() => {
-          observer.disconnect();
-          console.log('WebUntis Phase 2: MutationObserver stopped after 30 seconds');
-        }, 30000);
       })();
     ''',
     delay: 0,
-    description: 'Phase 2: Remove mobile banner completely with MutationObserver',
+    description: 'Phase 2: Hide mobile banner with CSS injection (Desktop-App method)',
   );
 
   /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
@@ -551,47 +496,17 @@ class InjectionScripts {
               passwordField.dispatchEvent(new Event('input', { bubbles: true }));
               console.log('schul.cloud: Password re-set (attempt 3 - final)');
               
-              // MULTI-SET APPROACH for checkbox (like password)
-              // This ensures Angular properly registers the checkbox state
-              const checkbox = document.querySelector('input[type="checkbox"]');
+              // SIMPLE CLICK APPROACH (like Desktop-App)
+              // Just click the checkbox element - Angular handles the rest
+              const checkbox = document.querySelector('app-icon[icon="check"]') || 
+                              document.querySelector('input[type="checkbox"]');
               if (checkbox) {
-                // First set
-                checkbox.checked = true;
-                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-                checkbox.dispatchEvent(new Event('click', { bubbles: true }));
-                
-                try {
-                  checkbox.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
-                } catch (e) {}
-                
-                console.log('schul.cloud: Checkbox set (attempt 1)');
-                
-                // Second set after 100ms
-                await new Promise(resolve => setTimeout(resolve, 100));
-                checkbox.checked = true;
-                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log('schul.cloud: Checkbox re-set (attempt 2)');
-                
-                // Third set after 200ms
-                await new Promise(resolve => setTimeout(resolve, 200));
-                checkbox.checked = true;
-                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log('schul.cloud: Checkbox re-set (attempt 3 - final)');
-                
-                // Also set localStorage flags for session persistence
-                try {
-                  localStorage.setItem('rememberMe', 'true');
-                  localStorage.setItem('keepLoggedIn', 'true');
-                  localStorage.setItem('autoLogin', 'true');
-                  console.log('schul.cloud: localStorage flags set');
-                } catch (e) {
-                  console.log('schul.cloud: localStorage not available:', e);
-                }
+                console.log('schul.cloud: Clicking checkbox');
+                checkbox.click();
               }
               
-              // LONGER wait for Angular to fully process checkbox (was 500ms, now 1000ms)
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // Wait for Angular to process checkbox
+              await new Promise(resolve => setTimeout(resolve, 500));
               
               // Click "Anmelden mit Passwort" span (it's clickable!)
               const loginSpans = document.querySelectorAll('span.header');
@@ -599,6 +514,17 @@ class InjectionScripts {
                 if (span.textContent && span.textContent.includes('Anmelden mit Passwort')) {
                   console.log('schul.cloud: Clicking Anmelden mit Passwort');
                   span.click();
+                  
+                  // Signal Flutter that login is complete
+                  setTimeout(() => {
+                    try {
+                      window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
+                      console.log('schul.cloud: Sent loginComplete signal to Flutter');
+                    } catch (e) {
+                      console.log('schul.cloud: Could not send signal to Flutter:', e);
+                    }
+                  }, 1000);
+                  
                   return true;
                 }
               }
@@ -608,6 +534,17 @@ class InjectionScripts {
               if (submitButton && !submitButton.disabled) {
                 console.log('schul.cloud: Clicking submit button (fallback)');
                 submitButton.click();
+                
+                // Signal Flutter that login is complete
+                setTimeout(() => {
+                  try {
+                    window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
+                    console.log('schul.cloud: Sent loginComplete signal to Flutter');
+                  } catch (e) {
+                    console.log('schul.cloud: Could not send signal to Flutter:', e);
+                  }
+                }, 1000);
+                
                 return true;
               }
             }

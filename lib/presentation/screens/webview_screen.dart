@@ -166,6 +166,21 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                   ),
                   onWebViewCreated: (controller) {
                     _webViewController = controller;
+                    
+                    // Register JavaScript handler for login completion
+                    controller.addJavaScriptHandler(
+                      handlerName: 'loginComplete',
+                      callback: (args) {
+                        // Hide loading overlay when JS signals completion
+                        if (mounted && _isInjecting) {
+                          setState(() {
+                            _isInjecting = false;
+                          });
+                          logger.info('Login complete signal received from JavaScript');
+                        }
+                        return {'success': true};
+                      },
+                    );
                   },
                   shouldOverrideUrlLoading: (controller, navigationAction) async {
                     final url = navigationAction.request.url;
