@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:open_file/open_file.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 
 /// Download request model
@@ -194,12 +195,12 @@ class DownloadService {
 
       logger.info('File saved successfully: $finalFilePath');
 
-      // Show success toast
+      // Show success notification with "Open" action
       if (context.mounted) {
-        _showSnackBar(
+        _showDownloadCompleteNotification(
           context,
-          'Download abgeschlossen: $filename',
-          isSuccess: true,
+          filename: filename,
+          filePath: finalFilePath,
         );
       }
 
@@ -378,6 +379,78 @@ class DownloadService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       return 'download_$timestamp';
     }
+  }
+
+  /// Show download complete notification with open file action
+  void _showDownloadCompleteNotification(
+    BuildContext context, {
+    required String filename,
+    required String filePath,
+  }) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.download_done, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Download abgeschlossen',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    filename,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Öffnen',
+          textColor: Colors.white,
+          onPressed: () async {
+            try {
+              logger.info('Opening file: $filePath');
+              final result = await OpenFile.open(filePath);
+              
+              if (result.type != ResultType.done) {
+                logger.warning('Failed to open file: ${result.message}');
+                if (context.mounted) {
+                  _showSnackBar(
+                    context,
+                    'Datei konnte nicht geöffnet werden: ${result.message}',
+                    isError: true,
+                  );
+                }
+              }
+            } catch (error) {
+              logger.error('Error opening file', error);
+              if (context.mounted) {
+                _showSnackBar(
+                  context,
+                  'Fehler beim Öffnen der Datei',
+                  isError: true,
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
   }
 
   /// Show snackbar message

@@ -106,62 +106,97 @@ class InjectionScripts {
     description: 'Phase 1: Close initial WebUntis dialog',
   );
 
-  /// WebUntis-specific injection - Phase 2: Hide mobile banner directly
-  /// Simply hides the banner div instead of trying to click the X button
+  /// WebUntis-specific injection - Phase 2: Remove mobile banner completely
+  /// Uses MutationObserver to watch for banner re-appearance
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
-        let attemptCount = 0;
-        const maxAttempts = 10;
+        console.log('WebUntis Phase 2: Starting banner removal with MutationObserver');
         
-        function hideBanner() {
-          attemptCount++;
+        // Function to remove banner
+        function removeBanner() {
+          let removed = false;
           
           try {
-            console.log('WebUntis Phase 2: Attempting to hide banner (attempt ' + attemptCount + ')');
-            
-            // Primary approach: Hide mobile-banner div directly
+            // Primary approach: Remove mobile-banner div completely
             const mobileBanner = document.querySelector('div.mobile-banner');
             if (mobileBanner) {
-              mobileBanner.style.display = 'none';
-              console.log('WebUntis Phase 2: Banner ausgeblendet');
-              return true;
+              mobileBanner.remove();
+              console.log('WebUntis Phase 2: Banner removed!');
+              removed = true;
             }
             
-            // Fallback: Hide any banner-like elements
+            // Fallback: Remove any banner-like elements
             const banners = document.querySelectorAll('[class*="banner"], [class*="notification-bar"], [class*="app-banner"]');
             for (const banner of banners) {
               const style = window.getComputedStyle(banner);
               if (style.display !== 'none' && style.position === 'fixed') {
-                banner.style.display = 'none';
-                console.log('WebUntis Phase 2: Found and hid banner:', banner.className);
-                return true;
+                banner.remove();
+                console.log('WebUntis Phase 2: Found and removed banner:', banner.className);
+                removed = true;
               }
             }
           } catch (error) {
             console.error('WebUntis Phase 2 error:', error);
           }
           
-          // Continue trying if not found and under max attempts
-          if (attemptCount < maxAttempts) {
-            setTimeout(hideBanner, 500);
-            return false;
-          } else {
-            console.log('WebUntis Phase 2: Max attempts reached');
-            return false;
-          }
+          return removed;
         }
         
-        // Try immediately
-        if (!hideBanner()) {
-          // Try again after delays
-          setTimeout(hideBanner, 1000);
-          setTimeout(hideBanner, 2000);
-        }
+        // Initial removal attempts
+        removeBanner();
+        setTimeout(removeBanner, 500);
+        setTimeout(removeBanner, 1000);
+        setTimeout(removeBanner, 2000);
+        
+        // Set up MutationObserver to watch for banner re-appearance
+        const observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'childList') {
+              // Check if any added nodes are banners
+              for (const node of mutation.addedNodes) {
+                if (node.nodeType === 1) { // Element node
+                  const element = node;
+                  // Check if this is a banner or contains a banner
+                  if (element.classList && (
+                    element.classList.contains('mobile-banner') ||
+                    element.className.includes('banner') ||
+                    element.className.includes('notification-bar') ||
+                    element.className.includes('app-banner')
+                  )) {
+                    console.log('WebUntis Phase 2: Banner re-appeared, removing again!');
+                    element.remove();
+                  }
+                  
+                  // Also check children
+                  const childBanners = element.querySelectorAll('[class*="banner"], [class*="notification-bar"], [class*="app-banner"]');
+                  for (const childBanner of childBanners) {
+                    console.log('WebUntis Phase 2: Child banner found, removing!');
+                    childBanner.remove();
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+        // Start observing the document body for changes
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+        
+        console.log('WebUntis Phase 2: MutationObserver active, watching for banner re-appearance');
+        
+        // Stop observing after 30 seconds (banner shouldn't appear after that)
+        setTimeout(() => {
+          observer.disconnect();
+          console.log('WebUntis Phase 2: MutationObserver stopped after 30 seconds');
+        }, 30000);
       })();
     ''',
     delay: 0,
-    description: 'Phase 2: Hide mobile banner div directly',
+    description: 'Phase 2: Remove mobile banner completely with MutationObserver',
   );
 
   /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
@@ -516,25 +551,47 @@ class InjectionScripts {
               passwordField.dispatchEvent(new Event('input', { bubbles: true }));
               console.log('schul.cloud: Password re-set (attempt 3 - final)');
               
-              // Check "Eingeloggt bleiben" checkbox AND set localStorage
+              // MULTI-SET APPROACH for checkbox (like password)
+              // This ensures Angular properly registers the checkbox state
               const checkbox = document.querySelector('input[type="checkbox"]');
-              if (checkbox && !checkbox.checked) {
+              if (checkbox) {
+                // First set
                 checkbox.checked = true;
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+                checkbox.dispatchEvent(new Event('click', { bubbles: true }));
+                
+                try {
+                  checkbox.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
+                } catch (e) {}
+                
+                console.log('schul.cloud: Checkbox set (attempt 1)');
+                
+                // Second set after 100ms
+                await new Promise(resolve => setTimeout(resolve, 100));
+                checkbox.checked = true;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('schul.cloud: Checkbox re-set (attempt 2)');
+                
+                // Third set after 200ms
+                await new Promise(resolve => setTimeout(resolve, 200));
+                checkbox.checked = true;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('schul.cloud: Checkbox re-set (attempt 3 - final)');
                 
                 // Also set localStorage flags for session persistence
                 try {
                   localStorage.setItem('rememberMe', 'true');
                   localStorage.setItem('keepLoggedIn', 'true');
                   localStorage.setItem('autoLogin', 'true');
-                  console.log('schul.cloud: Checkbox checked + localStorage flags set');
+                  console.log('schul.cloud: localStorage flags set');
                 } catch (e) {
                   console.log('schul.cloud: localStorage not available:', e);
                 }
               }
               
-              // Wait for Angular to process
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // LONGER wait for Angular to fully process checkbox (was 500ms, now 1000ms)
+              await new Promise(resolve => setTimeout(resolve, 1000));
               
               // Click "Anmelden mit Passwort" span (it's clickable!)
               const loginSpans = document.querySelectorAll('span.header');
