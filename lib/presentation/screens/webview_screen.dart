@@ -160,11 +160,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                   onWebViewCreated: (controller) {
                     _webViewController = controller;
                   },
-                  onLoadStart: (controller, url) async {
-                    setState(() {
-                      _currentUrl = url.toString();
-                      _loadingProgress = 0;
-                    });
+                  shouldOverrideUrlLoading: (controller, navigationAction) async {
+                    final url = navigationAction.request.url;
                     
                     // BBB Meeting-Link Detection: Open in system browser
                     if (widget.appId?.toLowerCase() == 'bbb' && url != null) {
@@ -175,6 +172,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                         return NavigationActionPolicy.CANCEL;
                       }
                     }
+                    
+                    return NavigationActionPolicy.ALLOW;
+                  },
+                  onLoadStart: (controller, url) async {
+                    setState(() {
+                      _currentUrl = url.toString();
+                      _loadingProgress = 0;
+                    });
                   },
                   onLoadStop: (controller, url) async {
                     setState(() {
