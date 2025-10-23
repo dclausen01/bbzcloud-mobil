@@ -68,6 +68,7 @@ class DatabaseService {
         icon TEXT NOT NULL,
         user_id INTEGER,
         order_index INTEGER DEFAULT 0,
+        is_visible INTEGER DEFAULT 1,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES user_profile(id)

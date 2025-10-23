@@ -157,33 +157,92 @@ class CustomAppsNotifier extends StateNotifier<AsyncValue<List<CustomApp>>> {
     }
   }
 
-  /// Add custom app
+  /// Add custom app with optimistic update
   Future<void> addApp(CustomApp app) async {
+    // Save previous state for rollback
+    final previousState = state;
+    
     try {
+      // Optimistic update: Add to state immediately
+      state.whenData((apps) {
+        state = AsyncValue.data([...apps, app]);
+      });
+      
+      // Persist to database
       await _database.saveCustomApp(app);
-      await reload();
+      
+      // Verify by reloading (but don't fail if reload has issues)
+      try {
+        await reload();
+      } catch (reloadError) {
+        logger.warning('Reload after add failed, but app was saved', reloadError);
+        // Keep optimistic state since save succeeded
+      }
     } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
+      // Rollback to previous state on failure
+      state = previousState;
+      logger.error('Failed to add custom app', error, stackTrace);
+      rethrow;
     }
   }
 
-  /// Update custom app
+  /// Update custom app with optimistic update
   Future<void> updateApp(CustomApp app) async {
+    // Save previous state for rollback
+    final previousState = state;
+    
     try {
+      // Optimistic update: Replace in state immediately
+      state.whenData((apps) {
+        final updatedApps = apps.map((a) => a.id == app.id ? app : a).toList();
+        state = AsyncValue.data(updatedApps);
+      });
+      
+      // Persist to database
       await _database.updateCustomApp(app);
-      await reload();
+      
+      // Verify by reloading (but don't fail if reload has issues)
+      try {
+        await reload();
+      } catch (reloadError) {
+        logger.warning('Reload after update failed, but app was updated', reloadError);
+        // Keep optimistic state since update succeeded
+      }
     } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
+      // Rollback to previous state on failure
+      state = previousState;
+      logger.error('Failed to update custom app', error, stackTrace);
+      rethrow;
     }
   }
 
-  /// Delete custom app
+  /// Delete custom app with optimistic update
   Future<void> deleteApp(String appId) async {
+    // Save previous state for rollback
+    final previousState = state;
+    
     try {
+      // Optimistic update: Remove from state immediately
+      state.whenData((apps) {
+        final filteredApps = apps.where((a) => a.id != appId).toList();
+        state = AsyncValue.data(filteredApps);
+      });
+      
+      // Persist to database
       await _database.deleteCustomApp(appId);
-      await reload();
+      
+      // Verify by reloading (but don't fail if reload has issues)
+      try {
+        await reload();
+      } catch (reloadError) {
+        logger.warning('Reload after delete failed, but app was deleted', reloadError);
+        // Keep optimistic state since delete succeeded
+      }
     } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
+      // Rollback to previous state on failure
+      state = previousState;
+      logger.error('Failed to delete custom app', error, stackTrace);
+      rethrow;
     }
   }
 
