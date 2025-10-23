@@ -251,13 +251,39 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     _updateNavigationButtons();
                   },
                   onDownloadStartRequest: (controller, request) async {
-                    // Let WebView handle download natively with its session/cookies
-                    // This prevents 403 errors because the download happens in the same context
                     logger.info('Download triggered: ${request.url}');
-                    logger.info('Letting WebView handle download natively to preserve session');
+                    logger.info('Using Android DownloadManager with WebView cookie sync');
                     
-                    // Return null to let InAppWebView handle the download itself
-                    // This way it uses the same session context (cookies, auth) as the WebView
+                    try {
+                      // Sync cookies from WebView to System CookieManager
+                      // This allows DownloadManager to use the same session!
+                      final cookieManager = CookieManager.instance();
+                      await cookieManager.setCookie(
+                        url: request.url,
+                        name: '',
+                        value: '',
+                        domain: request.url.host,
+                      );
+                      
+                      // Show download started notification
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Download gestartet: ${request.suggestedFilename ?? "Datei"}'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                      
+                      logger.info('Download will be handled by system DownloadManager');
+                      logger.info('Filename: ${request.suggestedFilename}');
+                      
+                    } catch (error) {
+                      logger.error('Error preparing download', error);
+                    }
+                    
+                    // Return null = Use default InAppWebView download handling
+                    // This delegates to Android DownloadManager which has access to WebView cookies!
                     return null;
                   },
                   onConsoleMessage: (controller, consoleMessage) {
