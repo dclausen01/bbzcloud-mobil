@@ -2,8 +2,9 @@
 /// 
 /// Screen for displaying web apps with JavaScript injection and app switcher
 /// 
-/// @version 0.2.0
+/// @version 0.3.0
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -45,6 +46,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   bool _webuntisLoginTriggered = false;
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
+  bool _isInjecting = false;
 
   @override
   void initState() {
@@ -194,6 +196,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     
                     _updateNavigationButtons();
                     
+                    // Show injection overlay if auth required
+                    if (widget.requiresAuth && !_isInjecting) {
+                      setState(() {
+                        _isInjecting = true;
+                      });
+                    }
+                    
                     // WebUntis special handling
                     if (widget.appId?.toLowerCase() == 'webuntis') {
                       await _handleWebUntisFlow(controller, url.toString());
@@ -205,6 +214,16 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                       
                       if (widget.requiresAuth) {
                         await _injectAuthScript(controller);
+                      }
+                    }
+                    
+                    // Hide injection overlay after scripts complete + small delay
+                    if (widget.requiresAuth) {
+                      await Future.delayed(const Duration(milliseconds: 500));
+                      if (mounted) {
+                        setState(() {
+                          _isInjecting = false;
+                        });
                       }
                     }
                   },
@@ -256,6 +275,31 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                   _showAppSwitcher = false;
                 });
               },
+            ),
+
+          // Auth Injection Loading Overlay
+          if (_isInjecting && widget.requiresAuth)
+            Container(
+              color: Colors.black.withOpacity(0.7),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Anmeldung läuft...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
@@ -327,6 +371,16 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   }
 
   Future<void> _injectAuthScript(InAppWebViewController controller) async {
+    // Start safety timeout timer (5 seconds max)
+    final timeoutTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted && _isInjecting) {
+        setState(() {
+          _isInjecting = false;
+        });
+        logger.warning('Auth injection timeout - overlay force-hidden after 5 seconds');
+      }
+    });
+
     try {
       final credentials = await CredentialService.instance.loadCredentials();
       
@@ -351,6 +405,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       }
     } catch (error, stackTrace) {
       logger.error('Error injecting auth script', error, stackTrace);
+    } finally {
+      // Cancel timeout timer since we completed successfully
+      timeoutTimer.cancel();
     }
   }
 
