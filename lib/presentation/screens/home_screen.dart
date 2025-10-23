@@ -204,17 +204,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                                 // App card content (right column)
                                 Expanded(
-                                  child: SizedBox(
-                                    height: 180,
-                                    child: AppCard(
-                                      app: app,
-                                      onTap: () {},
-                                      isEditMode: true,
-                                      isVisible: isVisible,
-                                      onToggleVisibility: () {
-                                        ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
-                                      },
-                                    ),
+                                  child: Stack(
+                                    children: [
+                                      SizedBox(
+                                        height: 180,
+                                        child: AppCard(
+                                          app: app,
+                                          onTap: () {},
+                                          isEditMode: true,
+                                          isVisible: isVisible,
+                                          onToggleVisibility: () {
+                                            ref.read(appSettingsProvider.notifier).toggleVisibility(appId);
+                                          },
+                                        ),
+                                      ),
+                                      // Edit/Delete buttons for Custom Apps only
+                                      if (app is CustomApp)
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // Edit button
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.withOpacity(0.9),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: IconButton(
+                                                  icon: const Icon(Icons.edit, size: 20),
+                                                  color: Colors.white,
+                                                  onPressed: () => _editCustomApp(app),
+                                                  tooltip: 'Bearbeiten',
+                                                  padding: const EdgeInsets.all(8),
+                                                  constraints: const BoxConstraints(),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              // Delete button
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withOpacity(0.9),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: IconButton(
+                                                  icon: const Icon(Icons.delete, size: 20),
+                                                  color: Colors.white,
+                                                  onPressed: () => _deleteCustomApp(app),
+                                                  tooltip: 'Löschen',
+                                                  padding: const EdgeInsets.all(8),
+                                                  constraints: const BoxConstraints(),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -347,5 +393,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  /// Edit a custom app - opens dialog with existing app data
+  Future<void> _editCustomApp(CustomApp app) async {
+    await showDialog(
+      context: context,
+      builder: (context) => CustomAppDialog(existingApp: app),
+    );
+  }
+
+  /// Delete a custom app with confirmation dialog
+  Future<void> _deleteCustomApp(CustomApp app) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Custom App löschen?'),
+        content: Text('Möchten Sie "${app.title}" wirklich löschen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref.read(customAppsProvider.notifier).deleteApp(app.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${app.title} wurde gelöscht'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fehler beim Löschen: $error'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
   }
 }

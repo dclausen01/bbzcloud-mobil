@@ -108,6 +108,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                       setState(() {
                         _selectedRole = UserRole.teacher;
                       });
+                    } else if (value.endsWith('@sus.bbz-rd-eck.de')) {
+                      setState(() {
+                        _selectedRole = UserRole.student;
+                      });
                     }
                   },
                 ),

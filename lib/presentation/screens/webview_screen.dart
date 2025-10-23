@@ -156,6 +156,11 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     allowFileAccessFromFileURLs: false,
                     allowUniversalAccessFromFileURLs: false,
                     userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0',
+                    // Session persistence settings for schul.cloud and other apps
+                    thirdPartyCookiesEnabled: true,
+                    cacheEnabled: true,
+                    clearCache: false,
+                    incognito: false,
                   ),
                   onWebViewCreated: (controller) {
                     _webViewController = controller;
@@ -491,16 +496,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   }
 
   /// Check if URL is a BBB meeting/conference link
+  /// Only matches actual meeting join API calls (precise selectors from desktop app)
   bool _isBBBMeetingLink(String url) {
-    // BBB meeting patterns (from desktop app):
-    // - /join - Meeting join page
-    // - /conference - Conference room
-    // - /b/ - BBB room shortcode
-    // - greenlight - Greenlight frontend
-    return url.contains('/join') ||
-           url.contains('/conference') ||
-           url.contains('/b/') ||
-           url.contains('greenlight');
+    // BBB meeting patterns (from desktop app electron.js):
+    // - bbb.bbz-rd-eck.de/bigbluebutton/api/join? - Actual API join with parameters
+    // - meet.stashcat.com - Stashcat meetings
+    return url.contains('bbb.bbz-rd-eck.de/bigbluebutton/api/join?') ||
+           url.contains('meet.stashcat.com');
   }
 
   /// Open URL in system browser (for BBB meetings with camera/mic support)

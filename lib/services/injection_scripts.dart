@@ -106,84 +106,36 @@ class InjectionScripts {
     description: 'Phase 1: Close initial WebUntis dialog',
   );
 
-  /// WebUntis-specific injection - Phase 2: Close overlay "X" AFTER login
-  /// Uses PRECISE selectors from actual WebUntis mobile banner HTML
+  /// WebUntis-specific injection - Phase 2: Hide mobile banner directly
+  /// Simply hides the banner div instead of trying to click the X button
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
         let attemptCount = 0;
-        const maxAttempts = 30;
+        const maxAttempts = 10;
         
-        function closeOverlay() {
+        function hideBanner() {
           attemptCount++;
-          let foundAndClicked = false;
           
           try {
-            console.log('WebUntis Phase 2: Attempting to close overlay (attempt ' + attemptCount + ')');
+            console.log('WebUntis Phase 2: Attempting to hide banner (attempt ' + attemptCount + ')');
             
-            // PRECISE selectors based on actual WebUntis mobile banner structure:
-            // <div class="mobile-banner">
-            //   <div class="mobile-banner-close">
-            //     <i class="untis-icon untis-icon-cancel">
-            const closeSelectors = [
-              // Most precise selectors first (from user-provided HTML)
-              'div.mobile-banner-close',                    // Direct close button container
-              'i.untis-icon-cancel',                         // Cancel icon itself
-              'div.mobile-banner div.mobile-banner-close',  // Full path
-              'div.mobile-banner i.untis-icon-cancel',      // Full path to icon
-              
-              // Fallback selectors from desktop app
-              '[class*="banner"] [class*="close"]',
-              '[class*="overlay"] [class*="close"]',
-              'button[aria-label*="close" i]',
-              'a[aria-label*="close" i]',
-              'button[aria-label*="schließen" i]',
-              'a[aria-label*="schließen" i]',
-              'button:has(svg[class*="close"])',
-              'a:has(svg[class*="close"])',
-              '[style*="position: absolute"][style*="right"][style*="top"] button',
-              '[style*="position: absolute"][style*="right"][style*="top"] a'
-            ];
-            
-            for (const selector of closeSelectors) {
-              try {
-                const elements = document.querySelectorAll(selector);
-                for (const element of elements) {
-                  if (element && element.offsetParent !== null) {
-                    console.log('WebUntis Phase 2: Found element with selector:', selector, '- Tag:', element.tagName);
-                    element.click();
-                    foundAndClicked = true;
-                    break;
-                  }
-                }
-                if (foundAndClicked) break;
-              } catch (e) {
-                console.error('WebUntis Phase 2: Error with selector ' + selector + ':', e);
-                continue;
-              }
+            // Primary approach: Hide mobile-banner div directly
+            const mobileBanner = document.querySelector('div.mobile-banner');
+            if (mobileBanner) {
+              mobileBanner.style.display = 'none';
+              console.log('WebUntis Phase 2: Banner ausgeblendet');
+              return true;
             }
             
-            // Fallback: Hide mobile-banner directly
-            if (!foundAndClicked) {
-              const mobileBanner = document.querySelector('div.mobile-banner');
-              if (mobileBanner) {
-                console.log('WebUntis Phase 2: Hiding mobile-banner directly');
-                mobileBanner.style.display = 'none';
-                foundAndClicked = true;
-              }
-            }
-            
-            // Last resort: Remove overlay backdrops
-            if (!foundAndClicked) {
-              const overlays = document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="mask"]');
-              for (const overlay of overlays) {
-                const style = window.getComputedStyle(overlay);
-                if (style.display !== 'none' && style.visibility !== 'hidden') {
-                  console.log('WebUntis Phase 2: Hiding overlay backdrop');
-                  overlay.style.display = 'none';
-                  foundAndClicked = true;
-                  break;
-                }
+            // Fallback: Hide any banner-like elements
+            const banners = document.querySelectorAll('[class*="banner"], [class*="notification-bar"], [class*="app-banner"]');
+            for (const banner of banners) {
+              const style = window.getComputedStyle(banner);
+              if (style.display !== 'none' && style.position === 'fixed') {
+                banner.style.display = 'none';
+                console.log('WebUntis Phase 2: Found and hid banner:', banner.className);
+                return true;
               }
             }
           } catch (error) {
@@ -191,23 +143,25 @@ class InjectionScripts {
           }
           
           // Continue trying if not found and under max attempts
-          if (!foundAndClicked && attemptCount < maxAttempts) {
-            setTimeout(closeOverlay, 500);
-          } else if (foundAndClicked) {
-            console.log('WebUntis Phase 2: Successfully closed overlay');
+          if (attemptCount < maxAttempts) {
+            setTimeout(hideBanner, 500);
+            return false;
           } else {
-            console.log('WebUntis Phase 2: Max attempts reached without finding overlay');
+            console.log('WebUntis Phase 2: Max attempts reached');
+            return false;
           }
-          
-          return foundAndClicked;
         }
         
-        // Start after short delay
-        setTimeout(closeOverlay, 1000);
+        // Try immediately
+        if (!hideBanner()) {
+          // Try again after delays
+          setTimeout(hideBanner, 1000);
+          setTimeout(hideBanner, 2000);
+        }
       })();
     ''',
     delay: 0,
-    description: 'Phase 2: Close overlay with precise mobile-banner selectors',
+    description: 'Phase 2: Hide mobile banner div directly',
   );
 
   /// WebUntis-specific injection - Phase 3: Monitor for post-interaction overlays
@@ -562,12 +516,21 @@ class InjectionScripts {
               passwordField.dispatchEvent(new Event('input', { bubbles: true }));
               console.log('schul.cloud: Password re-set (attempt 3 - final)');
               
-              // Check "Eingeloggt bleiben" checkbox
+              // Check "Eingeloggt bleiben" checkbox AND set localStorage
               const checkbox = document.querySelector('input[type="checkbox"]');
               if (checkbox && !checkbox.checked) {
                 checkbox.checked = true;
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log('schul.cloud: Checkbox checked');
+                
+                // Also set localStorage flags for session persistence
+                try {
+                  localStorage.setItem('rememberMe', 'true');
+                  localStorage.setItem('keepLoggedIn', 'true');
+                  localStorage.setItem('autoLogin', 'true');
+                  console.log('schul.cloud: Checkbox checked + localStorage flags set');
+                } catch (e) {
+                  console.log('schul.cloud: localStorage not available:', e);
+                }
               }
               
               // Wait for Angular to process
@@ -989,8 +952,8 @@ class InjectionScripts {
         return getOutlookInjection(email, password);
       
       default:
-        // Use generic injection for unknown apps
-        return getGenericInjection(email, password);
+        // No generic injection - let unknown apps handle their own login
+        return null;
     }
   }
 
