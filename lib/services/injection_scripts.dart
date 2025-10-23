@@ -461,40 +461,25 @@ class InjectionScripts {
             return false;
           }
           
-          // Phase 2: Fill password with MULTI-SET approach to prevent [object Event]
+          // Phase 2: Fill password with DESKTOP-APP approach (NO multi-set!)
           async function fillPasswordAndLogin() {
-            console.log('schul.cloud: Phase 2 - Password (multi-set approach)');
+            console.log('schul.cloud: Phase 2 - Password (desktop-app approach)');
             
             // Find password field
             const passwordField = document.querySelector('input[type="password"]');
             
             if (passwordField && passwordField.offsetParent !== null) {
-              // MULTI-SET APPROACH: Set password multiple times with delays
-              // This prevents Angular from overwriting with [object Event]
-              
-              // First set
+              // DESKTOP-APP METHOD: Set ONCE, then trigger events
+              console.log('schul.cloud: Filling login password (desktop-app method)');
               passwordField.value = PASSWORD_VALUE;
+              passwordField.focus();
+              
+              // Trigger Angular events (EXACTLY like desktop-app)
               passwordField.dispatchEvent(new Event('input', { bubbles: true }));
               passwordField.dispatchEvent(new Event('change', { bubbles: true }));
               passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
               
-              try {
-                passwordField.dispatchEvent(new Event('ngModelChange', { bubbles: true }));
-              } catch (e) {}
-              
-              console.log('schul.cloud: Password set (attempt 1)');
-              
-              // Second set after 100ms (Angular processing delay)
-              await new Promise(resolve => setTimeout(resolve, 100));
-              passwordField.value = PASSWORD_VALUE;
-              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-              console.log('schul.cloud: Password re-set (attempt 2)');
-              
-              // Third set after 300ms (final safeguard)
-              await new Promise(resolve => setTimeout(resolve, 200));
-              passwordField.value = PASSWORD_VALUE;
-              passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-              console.log('schul.cloud: Password re-set (attempt 3 - final)');
+              console.log('schul.cloud: Password set ONCE');
               
               // SIMPLE CLICK APPROACH (like Desktop-App)
               // Just click the checkbox element - Angular handles the rest
@@ -505,8 +490,8 @@ class InjectionScripts {
                 checkbox.click();
               }
               
-              // Wait for Angular to process checkbox
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // Wait then click login button (EXACTLY like desktop-app: 1000ms)
+              await new Promise(resolve => setTimeout(resolve, 1000));
               
               // Click "Anmelden mit Passwort" span (it's clickable!)
               const loginSpans = document.querySelectorAll('span.header');
