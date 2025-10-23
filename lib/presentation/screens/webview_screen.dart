@@ -251,8 +251,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     _updateNavigationButtons();
                   },
                   onDownloadStartRequest: (controller, request) async {
-                    // Handle download request using DownloadService
-                    await _handleDownload(request);
+                    // Let WebView handle download natively with its session/cookies
+                    // This prevents 403 errors because the download happens in the same context
+                    logger.info('Download triggered: ${request.url}');
+                    logger.info('Letting WebView handle download natively to preserve session');
+                    
+                    // Return null to let InAppWebView handle the download itself
+                    // This way it uses the same session context (cookies, auth) as the WebView
+                    return null;
                   },
                   onConsoleMessage: (controller, consoleMessage) {
                     debugPrint('Console: ${consoleMessage.message}');
