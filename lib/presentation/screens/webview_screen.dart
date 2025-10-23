@@ -505,6 +505,15 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       // Extract headers from the request if available
       final Map<String, String> headers = {};
       
+      // Add User-Agent (same as WebView)
+      headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0';
+      
+      // Add Referer (current page URL for CSRF protection)
+      if (_currentUrl != null) {
+        headers['Referer'] = _currentUrl!;
+        logger.info('Added Referer header: $_currentUrl');
+      }
+      
       // Get cookies from WebView to maintain session
       if (_webViewController != null) {
         final cookieManager = CookieManager.instance();
@@ -514,7 +523,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
               .map((cookie) => '${cookie.name}=${cookie.value}')
               .join('; ');
           headers['Cookie'] = cookieString;
-          logger.info('Added cookies to download request');
+          logger.info('Added ${cookies.length} cookies to download request');
         }
       }
 
