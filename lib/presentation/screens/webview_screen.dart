@@ -159,6 +159,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     allowUniversalAccessFromFileURLs: false,
                     // App-specific User Agent: WebUntis gets Windows Desktop UA to avoid mobile banner
                     userAgent: _getUserAgentForApp(widget.appId),
+                    // App-specific zoom: WebUntis gets 150% for better readability
+                    initialScale: _getInitialScaleForApp(widget.appId),
                     // Session persistence settings for schul.cloud and other apps
                     thirdPartyCookiesEnabled: true,
                     cacheEnabled: true,
@@ -528,12 +530,53 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     }
   }
 
+  /// Extract filename from URL as fallback
+  String _getFilenameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      
+      // Try to get filename from path segments
+      if (uri.pathSegments.isNotEmpty) {
+        final lastSegment = uri.pathSegments.last;
+        
+        // Check if it looks like a filename (has extension)
+        if (lastSegment.contains('.') && !lastSegment.endsWith('.')) {
+          // Decode URL encoding (e.g., %20 -> space)
+          final decoded = Uri.decodeComponent(lastSegment);
+          logger.info('Extracted filename from URL: $decoded');
+          return decoded;
+        }
+      }
+      
+      // Try to get filename from query parameters (e.g., ?file=document.pdf)
+      if (uri.queryParameters.containsKey('file')) {
+        final fileParam = uri.queryParameters['file']!;
+        if (fileParam.isNotEmpty) {
+          logger.info('Extracted filename from query param: $fileParam');
+          return fileParam;
+        }
+      }
+      
+      // Last resort: use timestamp
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fallback = 'download_$timestamp';
+      logger.warning('Could not extract filename from URL, using: $fallback');
+      return fallback;
+    } catch (e) {
+      logger.error('Error extracting filename from URL', e);
+      return 'download_${DateTime.now().millisecondsSinceEpoch}';
+    }
+  }
+
   /// Handle download request from WebView
   Future<void> _handleDownload(DownloadStartRequest request) async {
     try {
-      logger.info('Download request intercepted: ${request.url}');
+      logger.info('=== DOWNLOAD REQUEST START ===');
+      logger.info('URL: ${request.url}');
       logger.info('Suggested filename: ${request.suggestedFilename}');
       logger.info('Content length: ${request.contentLength}');
+      logger.info('MIME type: ${request.mimeType}');
+      logger.info('Current page URL: $_currentUrl');
 
       // Show download indicator
       if (mounted) {
@@ -543,16 +586,31 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
         });
       }
 
+      // Determine best filename
+      String filename;
+      if (request.suggestedFilename != null && 
+          request.suggestedFilename!.isNotEmpty &&
+          request.suggestedFilename != 'null' &&
+          !request.suggestedFilename!.endsWith('.bin')) {
+        filename = request.suggestedFilename!;
+        logger.info('Using suggested filename: $filename');
+      } else {
+        filename = _getFilenameFromUrl(request.url.toString());
+        logger.info('Using filename from URL: $filename');
+      }
+
       // Extract headers from the request if available
       final Map<String, String> headers = {};
       
-      // Add User-Agent (same as WebView)
-      headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0';
+      // Add User-Agent (app-specific for schul.cloud with Desktop UA)
+      final userAgent = _getUserAgentForApp(widget.appId);
+      headers['User-Agent'] = userAgent;
+      logger.info('User-Agent: $userAgent');
       
       // Add Referer (current page URL for CSRF protection)
       if (_currentUrl != null) {
         headers['Referer'] = _currentUrl!;
-        logger.info('Added Referer header: $_currentUrl');
+        logger.info('Referer: $_currentUrl');
       }
       
       // Get cookies from WebView to maintain session
@@ -564,16 +622,25 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
               .map((cookie) => '${cookie.name}=${cookie.value}')
               .join('; ');
           headers['Cookie'] = cookieString;
-          logger.info('Added ${cookies.length} cookies to download request');
+          logger.info('Cookies added: ${cookies.length} cookies');
+          
+          // DEBUG: Log cookie names for schul.cloud
+          if (widget.appId?.toLowerCase() == 'schulcloud') {
+            logger.info('schul.cloud cookies: ${cookies.map((c) => c.name).join(", ")}');
+          }
+        } else {
+          logger.warning('No cookies found for download request!');
         }
       }
 
       // Create download request
       final downloadRequest = DownloadRequest(
         url: request.url.toString(),
-        filename: request.suggestedFilename,
+        filename: filename,
         headers: headers.isNotEmpty ? headers : null,
       );
+
+      logger.info('Starting download with DownloadService...');
 
       // Use DownloadService to download the file
       final downloadService = DownloadService();
@@ -589,20 +656,42 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
               setState(() {
                 _downloadProgress = progress;
               });
-              logger.info('Download progress: ${(progress * 100).round()}%');
+              if (progress % 0.25 == 0) { // Log every 25%
+                logger.info('Download progress: ${(progress * 100).round()}%');
+              }
             }
           },
         );
       }
+      
+      logger.info('=== DOWNLOAD COMPLETED ===');
     } catch (error, stackTrace) {
-      logger.error('Error handling download', error, stackTrace);
+      logger.error('=== DOWNLOAD FAILED ===', error, stackTrace);
+      
+      // Check for specific error types
+      String errorMessage = 'Download fehlgeschlagen';
+      if (error.toString().contains('403')) {
+        errorMessage = 'Download verboten (403) - Authentifizierungsproblem';
+        logger.error('403 Forbidden - Cookies might not be working for download');
+      } else if (error.toString().contains('404')) {
+        errorMessage = 'Datei nicht gefunden (404)';
+      } else if (error.toString().contains('timeout')) {
+        errorMessage = 'Download-Timeout';
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Download fehlgeschlagen: $error'),
+            content: Text('$errorMessage: ${error.toString()}'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Details',
+              textColor: Colors.white,
+              onPressed: () {
+                logger.info('User requested error details');
+              },
+            ),
           ),
         );
       }
@@ -680,6 +769,15 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     
     // Default mobile User Agent for all other apps
     return 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0';
+  }
+
+  /// Get app-specific zoom level
+  /// WebUntis gets 150% zoom for better readability
+  int _getInitialScaleForApp(String? appId) {
+    if (appId?.toLowerCase() == 'webuntis') {
+      return 150; // 150% zoom for WebUntis
+    }
+    return 100; // Default 100% zoom
   }
 
   @override
