@@ -509,21 +509,20 @@ class InjectionScripts {
               
               console.log('schul.cloud: Password set ONCE');
               
-              // FIX: Use the REAL checkbox input element, not the visual icon!
+              // FIX: Use CLICK event like Desktop App (triggers Angular's save logic!)
               // HTML: <input type="checkbox" id="stayLoggedInCheck" class="checkbox">
-              const CHECKBOX_CHECKED = true;
               const checkbox = document.querySelector('input#stayLoggedInCheck[type="checkbox"]');
               if (checkbox) {
-                console.log('schul.cloud: Setting checkbox checked state');
-                checkbox.checked = CHECKBOX_CHECKED;
-                checkbox.focus();
+                console.log('schul.cloud: Found stay logged in checkbox');
                 
-                // Trigger Angular events
-                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-                checkbox.dispatchEvent(new Event('blur', { bubbles: true }));
-                
-                console.log('schul.cloud: Checkbox checked =', checkbox.checked);
+                // Check if already checked (to avoid double-click)
+                if (!checkbox.checked) {
+                  console.log('schul.cloud: Checkbox not checked, clicking it');
+                  checkbox.click();
+                  console.log('schul.cloud: Checkbox clicked, now checked =', checkbox.checked);
+                } else {
+                  console.log('schul.cloud: Checkbox already checked =', checkbox.checked);
+                }
               } else {
                 console.log('schul.cloud: Checkbox input#stayLoggedInCheck not found');
               }
