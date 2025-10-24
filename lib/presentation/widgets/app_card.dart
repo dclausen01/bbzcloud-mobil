@@ -2,16 +2,20 @@
 /// 
 /// Card widget to display individual apps
 /// 
-/// @version 0.1.0
+/// @version 0.2.0
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
+import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 
 class AppCard extends StatelessWidget {
   final dynamic app; // Can be AppItem or CustomApp
   final VoidCallback onTap;
+  final VoidCallback? onNativeAppTap; // NEW: For native app launch
   final bool isEditMode;
   final bool isVisible;
   final VoidCallback? onToggleVisibility;
@@ -20,10 +24,101 @@ class AppCard extends StatelessWidget {
     super.key,
     required this.app,
     required this.onTap,
+    this.onNativeAppTap,
     this.isEditMode = false,
     this.isVisible = true,
     this.onToggleVisibility,
   });
+
+  /// Check if this app has a native app option
+  bool get hasNativeApp {
+    if (app is AppItem) {
+      final appItem = app as AppItem;
+      return appItem.id == 'schulcloud'; // Only schul.cloud for now
+    }
+    return false;
+  }
+
+  /// Launch native schul.cloud app
+  Future<void> _launchNativeApp(BuildContext context) async {
+    try {
+      logger.info('Attempting to launch native schul.cloud app');
+      
+      final Uri appUri = Uri.parse('schulcloud://');
+      
+      if (await canLaunchUrl(appUri)) {
+        await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        logger.info('Native schul.cloud app launched successfully');
+      } else {
+        logger.warning('Native schul.cloud app not installed');
+        
+        // Show dialog to install app
+        if (context.mounted) {
+          _showInstallAppDialog(context);
+        }
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error launching native app', error, stackTrace);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Öffnen der App: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show dialog to install native app
+  void _showInstallAppDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('App nicht installiert'),
+        content: const Text(
+          'Die schul.cloud App ist nicht installiert.\n\n'
+          'Möchten Sie die App aus dem Store herunterladen?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _openAppStore();
+            },
+            child: const Text('Zum Store'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Open app store for schul.cloud
+  Future<void> _openAppStore() async {
+    try {
+      final Uri storeUrl;
+      if (Platform.isIOS) {
+        storeUrl = Uri.parse('https://apps.apple.com/de/app/schul-cloud/id1426477195');
+      } else if (Platform.isAndroid) {
+        storeUrl = Uri.parse('https://play.google.com/store/apps/details?id=com.heinekingmedia.schul_cloud');
+      } else {
+        logger.warning('Unsupported platform for app store');
+        return;
+      }
+      
+      if (await canLaunchUrl(storeUrl)) {
+        await launchUrl(storeUrl, mode: LaunchMode.externalApplication);
+        logger.info('Opened app store for schul.cloud');
+      }
+    } catch (error, stackTrace) {
+      logger.error('Error opening app store', error, stackTrace);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +143,11 @@ class AppCard extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // Split button for apps with native app option
+    if (hasNativeApp && !isEditMode) {
+      return _buildSplitButtonCard(context, title, color, icon, description);
+    }
+
     return Opacity(
       opacity: isEditMode && !isVisible ? 0.5 : 1.0,
       child: Card(
@@ -56,58 +156,8 @@ class AppCard extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none, // Allow controls to overflow
           children: [
-            // Main card content - use SizedBox.expand to fill card
-            SizedBox.expand(
-              child: InkWell(
-                onTap: isEditMode ? null : onTap,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        color,
-                        color.withOpacity(0.8),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                    Icon(
-                      icon,
-                      size: 48,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      title,
-                      style: AppTextStyles.heading3.copyWith(
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (description != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        description,
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            // Main card content
+            _buildCardContent(context, title, color, icon, description),
             
             // Edit Mode Controls - now on top with proper z-index
             if (isEditMode) ...[
@@ -169,6 +219,164 @@ class AppCard extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Build standard card content
+  Widget _buildCardContent(
+    BuildContext context,
+    String title,
+    Color color,
+    IconData icon,
+    String? description,
+  ) {
+    return SizedBox.expand(
+      child: InkWell(
+        onTap: isEditMode ? null : onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color,
+                color.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 48,
+                color: Colors.white,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                title,
+                style: AppTextStyles.heading3.copyWith(
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (description != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  description,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build split button card (native app + WebView)
+  Widget _buildSplitButtonCard(
+    BuildContext context,
+    String title,
+    Color color,
+    IconData icon,
+    String? description,
+  ) {
+    return Opacity(
+      opacity: isEditMode && !isVisible ? 0.5 : 1.0,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 1,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color,
+                color.withOpacity(0.8),
+              ],
+            ),
+          ),
+          child: Column(
+            children: [
+              // Top button: Native App
+              Expanded(
+                child: InkWell(
+                  onTap: () => _launchNativeApp(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.open_in_new,
+                          size: 32,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Native App',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Divider
+              Container(
+                height: 1,
+                color: Colors.white.withOpacity(0.3),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              ),
+              
+              // Bottom button: WebView
+              Expanded(
+                child: InkWell(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icon,
+                          size: 32,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'WebView',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
