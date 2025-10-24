@@ -523,6 +523,14 @@ class InjectionScripts {
                 } else {
                   console.log('schul.cloud: Checkbox already checked =', checkbox.checked);
                 }
+                
+                // DEBUG: Check if localStorage/cookies are being saved
+                setTimeout(() => {
+                  console.log('schul.cloud: DEBUG - Checking storage after checkbox click');
+                  console.log('schul.cloud: localStorage items:', Object.keys(localStorage).length);
+                  console.log('schul.cloud: localStorage content:', JSON.stringify(localStorage));
+                  console.log('schul.cloud: document.cookie:', document.cookie);
+                }, 500);
               } else {
                 console.log('schul.cloud: Checkbox input#stayLoggedInCheck not found');
               }
