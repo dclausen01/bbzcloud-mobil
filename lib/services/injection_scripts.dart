@@ -991,10 +991,8 @@ class InjectionScripts {
         return getWebuntisInjection(untisEmail, untisPassword);
       
       case 'schulcloud':
-        // DISABLED FOR TESTING: No credential injection at all
-        // Testing if injection itself causes session persistence issues
-        return null;
-        // return getSchulcloudInjection(email, password);
+        // Re-enabled with cookie backup/restore script
+        return getSchulcloudInjection(email, password);
       
       case 'bbb':
         return getBBBInjection(email, bbbPassword);
