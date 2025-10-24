@@ -668,11 +668,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   }
 
   /// Get app-specific User Agent string
-  /// WebUntis gets Windows Desktop UA to avoid mobile banner
+  /// WebUntis and schul.cloud get Windows Desktop UA
   String _getUserAgentForApp(String? appId) {
-    if (appId?.toLowerCase() == 'webuntis') {
+    if (appId?.toLowerCase() == 'webuntis' || 
+        appId?.toLowerCase() == 'schulcloud') {
       // Windows 10 Chrome Desktop User Agent
-      // This makes WebUntis think we're on desktop, avoiding mobile banner entirely!
+      // WebUntis: Avoids mobile banner entirely
+      // schul.cloud: May set persistent cookies instead of session-only
       return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     }
     

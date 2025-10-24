@@ -1008,12 +1008,105 @@ class InjectionScripts {
     }
   }
 
+  /// schul.cloud cookie backup/restore to localStorage
+  /// Workaround for session persistence issues
+  static const InjectionScript schulcloudCookieBackupInjection = InjectionScript(
+    js: '''
+      (function() {
+        console.log('schul.cloud: Cookie backup/restore script starting');
+        
+        try {
+          // Function to backup cookies to localStorage
+          function backupCookiesToLocalStorage() {
+            const cookies = document.cookie.split(';').filter(c => c.trim());
+            if (cookies.length > 0) {
+              console.log('schul.cloud: Backing up', cookies.length, 'cookies to localStorage');
+              localStorage.setItem('bbzcloud_cookie_backup', document.cookie);
+              localStorage.setItem('bbzcloud_cookie_backup_time', Date.now().toString());
+              console.log('schul.cloud: Cookies backed up successfully');
+            }
+          }
+          
+          // Function to restore cookies from localStorage
+          function restoreCookiesFromLocalStorage() {
+            const backupCookies = localStorage.getItem('bbzcloud_cookie_backup');
+            const backupTime = localStorage.getItem('bbzcloud_cookie_backup_time');
+            
+            if (backupCookies && backupTime) {
+              const timeSinceBackup = Date.now() - parseInt(backupTime);
+              const hoursSinceBackup = timeSinceBackup / (1000 * 60 * 60);
+              
+              console.log('schul.cloud: Found cookie backup from', hoursSinceBackup.toFixed(1), 'hours ago');
+              
+              // Only restore if backup is less than 24 hours old
+              if (hoursSinceBackup < 24) {
+                console.log('schul.cloud: Restoring cookies from localStorage');
+                
+                // Parse and set each cookie
+                const cookiePairs = backupCookies.split(';');
+                cookiePairs.forEach(pair => {
+                  const trimmed = pair.trim();
+                  if (trimmed) {
+                    // Set cookie with long expiration
+                    const expirationDate = new Date();
+                    expirationDate.setDate(expirationDate.getDate() + 30);
+                    document.cookie = trimmed + '; expires=' + expirationDate.toUTCString() + '; path=/';
+                  }
+                });
+                
+                console.log('schul.cloud: Cookies restored, reloading page');
+                // Give cookies time to be set, then reload
+                setTimeout(() => window.location.reload(), 500);
+                return true;
+              } else {
+                console.log('schul.cloud: Backup too old, clearing');
+                localStorage.removeItem('bbzcloud_cookie_backup');
+                localStorage.removeItem('bbzcloud_cookie_backup_time');
+              }
+            } else {
+              console.log('schul.cloud: No cookie backup found');
+            }
+            return false;
+          }
+          
+          // Check if we're on login page
+          const isLoginPage = window.location.href.includes('login') || 
+                             document.querySelector('input[type="password"]') !== null;
+          
+          if (isLoginPage) {
+            console.log('schul.cloud: On login page, checking for backup cookies');
+            // Try to restore cookies if on login page
+            restoreCookiesFromLocalStorage();
+          } else {
+            console.log('schul.cloud: Not on login page, backing up cookies');
+            // Backup cookies if logged in
+            backupCookiesToLocalStorage();
+            
+            // Also backup cookies periodically (every 5 minutes)
+            setInterval(backupCookiesToLocalStorage, 5 * 60 * 1000);
+            
+            // Backup before page unload
+            window.addEventListener('beforeunload', backupCookiesToLocalStorage);
+          }
+          
+        } catch (error) {
+          console.error('schul.cloud: Cookie backup/restore error:', error);
+        }
+      })();
+    ''',
+    delay: 0,
+    description: 'Backup cookies to localStorage for session persistence',
+  );
+
   /// Get post-load script for app (e.g., dialog dismissal)
   /// This runs BEFORE credential injection
   static InjectionScript? getPostLoadScriptForApp(String appId) {
     switch (appId.toLowerCase()) {
       case 'webuntis':
         return webuntisPhase1Injection; // Phase 1: Close "Im Browser öffnen" dialog
+      
+      case 'schulcloud':
+        return schulcloudCookieBackupInjection; // Backup/restore cookies to localStorage
       
       default:
         return null;
