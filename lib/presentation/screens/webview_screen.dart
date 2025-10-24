@@ -201,6 +201,17 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                       }
                     }
                     
+                    // schul.cloud Download-Link Detection: Open in system browser
+                    // This handles POST requests with form-data that can't be intercepted properly
+                    if (widget.appId?.toLowerCase() == 'schulcloud' && url != null) {
+                      if (_isSchulcloudDownloadLink(url.toString())) {
+                        logger.info('schul.cloud download link detected, opening in system browser');
+                        await _openInSystemBrowser(url.toString());
+                        // Stop WebView navigation
+                        return NavigationActionPolicy.CANCEL;
+                      }
+                    }
+                    
                     return NavigationActionPolicy.ALLOW;
                   },
                   onLoadStart: (controller, url) async {
@@ -257,7 +268,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     _updateNavigationButtons();
                   },
                   onDownloadStartRequest: (controller, request) async {
-                    // Handle download using DownloadService with proper session management
+                    // Skip schul.cloud downloads - they're handled by shouldOverrideUrlLoading
+                    // (schul.cloud uses POST requests with form-data that can't be properly intercepted here)
+                    if (widget.appId?.toLowerCase() == 'schulcloud') {
+                      logger.info('schul.cloud download - skipping onDownloadStartRequest (handled by shouldOverrideUrlLoading)');
+                      return;
+                    }
+                    
+                    // Handle download using DownloadService with proper session management for other apps
                     await _handleDownload(request);
                   },
                   onConsoleMessage: (controller, consoleMessage) {
@@ -716,17 +734,35 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
            url.contains('meet.stashcat.com');
   }
 
-  /// Open URL in system browser (for BBB meetings with camera/mic support)
+  /// Check if URL is a schul.cloud download link
+  /// schul.cloud uses POST requests with form-data to api.stashcat.com
+  /// These can't be properly intercepted by onDownloadStartRequest
+  bool _isSchulcloudDownloadLink(String url) {
+    // Download API patterns from network analysis:
+    // - api.stashcat.com/file/download?id=... - Direct file download
+    // - Any /file/download URL pattern
+    return url.contains('api.stashcat.com/file/download') ||
+           url.contains('/file/download?id=');
+  }
+
+  /// Open URL in system browser (for BBB meetings and schul.cloud downloads)
   Future<void> _openInSystemBrowser(String url) async {
     try {
       final uri = Uri.parse(url);
       
-      // Show message
+      // Show app-specific message
+      String message;
+      if (widget.appId?.toLowerCase() == 'schulcloud') {
+        message = 'Download wird im System-Browser geöffnet...';
+      } else {
+        message = 'BBB-Konferenz wird im System-Browser geöffnet...';
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('BBB-Konferenz wird im System-Browser geöffnet...'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
