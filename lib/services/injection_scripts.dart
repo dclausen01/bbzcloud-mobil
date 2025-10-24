@@ -535,7 +535,7 @@ class InjectionScripts {
                 console.log('schul.cloud: Checkbox input#stayLoggedInCheck not found');
               }
               
-              // Wait then click login button (EXACTLY like desktop-app: 1000ms)
+              // Wait then click login button (same as desktop-app)
               await new Promise(resolve => setTimeout(resolve, 1000));
               
               // Click "Anmelden mit Passwort" span (it's clickable!)
@@ -545,15 +545,22 @@ class InjectionScripts {
                   console.log('schul.cloud: Clicking Anmelden mit Passwort');
                   span.click();
                   
+                  // FIX: Wait LONGER for Angular to save session (like WebUntis: 2s, but 3s for Angular)
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                  
+                  // Check if session was saved
+                  console.log('schul.cloud: Checking if session was saved...');
+                  const sessionSaved = Object.keys(localStorage).length > 0 || document.cookie.length > 0;
+                  console.log('schul.cloud: localStorage items:', Object.keys(localStorage).length);
+                  console.log('schul.cloud: Session saved:', sessionSaved);
+                  
                   // Signal Flutter that login is complete
-                  setTimeout(() => {
-                    try {
-                      window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
-                      console.log('schul.cloud: Sent loginComplete signal to Flutter');
-                    } catch (e) {
-                      console.log('schul.cloud: Could not send signal to Flutter:', e);
-                    }
-                  }, 1000);
+                  try {
+                    window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
+                    console.log('schul.cloud: Sent loginComplete signal to Flutter');
+                  } catch (e) {
+                    console.log('schul.cloud: Could not send signal to Flutter:', e);
+                  }
                   
                   return true;
                 }
@@ -565,15 +572,18 @@ class InjectionScripts {
                 console.log('schul.cloud: Clicking submit button (fallback)');
                 submitButton.click();
                 
+                // FIX: Wait LONGER for Angular to save session
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                console.log('schul.cloud: Session check - localStorage items:', Object.keys(localStorage).length);
+                
                 // Signal Flutter that login is complete
-                setTimeout(() => {
-                  try {
-                    window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
-                    console.log('schul.cloud: Sent loginComplete signal to Flutter');
-                  } catch (e) {
-                    console.log('schul.cloud: Could not send signal to Flutter:', e);
-                  }
-                }, 1000);
+                try {
+                  window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
+                  console.log('schul.cloud: Sent loginComplete signal to Flutter');
+                } catch (e) {
+                  console.log('schul.cloud: Could not send signal to Flutter:', e);
+                }
                 
                 return true;
               }
@@ -599,9 +609,8 @@ class InjectionScripts {
             }
           }
           
-          // Start with delays for Angular
+          // FIX: Execute only ONCE to prevent race conditions (removed second execution)
           setTimeout(executeLogin, 500);
-          setTimeout(executeLogin, 1500);
           
         } catch (error) {
           console.error('Schul.cloud injection error:', error);
