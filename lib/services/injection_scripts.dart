@@ -509,6 +509,17 @@ class InjectionScripts {
               
               console.log('schul.cloud: Password set ONCE');
               
+              // MANUAL TEST MODE: Comment out checkbox and login button clicks
+              // User will manually click checkbox and login button to test session persistence
+              
+              console.log('schul.cloud: ===== MANUAL TEST MODE =====');
+              console.log('schul.cloud: Please manually:');
+              console.log('schul.cloud: 1. Click the "Angemeldet bleiben" checkbox');
+              console.log('schul.cloud: 2. Click the "Anmelden mit Passwort" button');
+              console.log('schul.cloud: ==============================');
+              
+              /* COMMENTED OUT FOR MANUAL TESTING
+              
               // FIX: Use CLICK event like Desktop App (triggers Angular's save logic!)
               // HTML: <input type="checkbox" id="stayLoggedInCheck" class="checkbox">
               const checkbox = document.querySelector('input#stayLoggedInCheck[type="checkbox"]');
@@ -587,6 +598,10 @@ class InjectionScripts {
                 
                 return true;
               }
+              
+              END OF COMMENTED OUT CODE */
+              
+              return false;
             }
             return false;
           }
