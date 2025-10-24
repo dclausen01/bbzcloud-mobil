@@ -107,28 +107,13 @@ class InjectionScripts {
   );
 
   /// WebUntis-specific injection - Phase 2: Hide mobile banner with CSS
-  /// Uses CSS injection (like Desktop-App) - works for current AND future elements!
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
-        console.log('WebUntis Phase 2: Starting banner removal');
-        console.log('WebUntis Phase 2: Current URL:', window.location.href);
-        console.log('WebUntis Phase 2: Document ready state:', document.readyState);
-        
         try {
-          // DEBUG: Check for existing banners BEFORE injection
-          const existingBanners = document.querySelectorAll('div.mobile-banner, .mobile-banner, [class*="mobile-banner"]');
-          console.log('WebUntis Phase 2: Found', existingBanners.length, 'existing banner elements');
-          existingBanners.forEach((banner, index) => {
-            console.log('WebUntis Phase 2: Banner', index, 'classes:', banner.className);
-            console.log('WebUntis Phase 2: Banner', index, 'visible:', banner.offsetParent !== null);
-          });
-          
-          // Create style element with CSS rules
           const style = document.createElement('style');
           style.id = 'bbzcloud-webuntis-banner-hide';
           style.textContent = `
-            /* Hide WebUntis mobile banner - applies to current and future elements */
             div.mobile-banner,
             .mobile-banner,
             [class*="mobile-banner"],
@@ -141,30 +126,9 @@ class InjectionScripts {
               overflow: hidden !important;
             }
           `;
-          
-          // Inject into head
           document.head.appendChild(style);
-          console.log('WebUntis Phase 2: CSS injected successfully with ID:', style.id);
-          console.log('WebUntis Phase 2: Total <style> elements in head:', document.head.querySelectorAll('style').length);
-          
-          // DEBUG: Check if banners are still visible AFTER injection
-          setTimeout(() => {
-            const stillVisibleBanners = Array.from(document.querySelectorAll('div.mobile-banner, .mobile-banner, [class*="mobile-banner"]'))
-              .filter(b => b.offsetParent !== null);
-            console.log('WebUntis Phase 2: Still visible banners after CSS:', stillVisibleBanners.length);
-            if (stillVisibleBanners.length > 0) {
-              console.error('WebUntis Phase 2: WARNING - Banners still visible despite CSS!');
-              stillVisibleBanners.forEach((banner, index) => {
-                console.log('WebUntis Phase 2: Visible banner', index, ':', banner.outerHTML.substring(0, 200));
-              });
-            } else {
-              console.log('WebUntis Phase 2: SUCCESS - All banners hidden!');
-            }
-          }, 500);
-          
         } catch (error) {
           console.error('WebUntis Phase 2 error:', error);
-          console.error('WebUntis Phase 2 stack:', error.stack);
         }
       })();
     ''',
@@ -176,17 +140,13 @@ class InjectionScripts {
   static const InjectionScript webuntisPhase3Injection = InjectionScript(
     js: '''
       (function() {
-        console.log('WebUntis Phase 3: Starting interaction monitor');
-        
         let interactionDetected = false;
         let monitoringActive = true;
         
-        // Function to detect and close overlays
         function detectAndCloseOverlay() {
-          if (!monitoringActive) return;
+          if (!monitoringActive) return false;
           
           try {
-            // Look for close buttons that may have appeared
             const closeButtons = document.querySelectorAll(
               'button[class*="close"], button[aria-label*="close"], button[aria-label*="schließen"], ' +
               'button[aria-label*="Close"], [class*="close-button"], [class*="closeButton"], ' +
@@ -196,20 +156,12 @@ class InjectionScripts {
             );
             
             for (const button of closeButtons) {
-              // Check if button is in a visible modal/dialog/overlay
               const parent = button.closest('[role="dialog"], [role="alertdialog"], [class*="modal"], [class*="overlay"], [class*="dialog"], [class*="popup"]');
               if (parent) {
                 const style = window.getComputedStyle(parent);
                 if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
-                  console.log('WebUntis Phase 3: Found and clicking close button after interaction');
                   button.click();
-                  
-                  // Stop monitoring after successful close
-                  setTimeout(() => {
-                    monitoringActive = false;
-                    console.log('WebUntis Phase 3: Monitoring stopped');
-                  }, 1000);
-                  
+                  setTimeout(() => { monitoringActive = false; }, 1000);
                   return true;
                 }
               }
@@ -220,51 +172,34 @@ class InjectionScripts {
           return false;
         }
         
-        // Listen for user interactions (click, touch, scroll)
         const interactionEvents = ['click', 'touchstart', 'scroll', 'keydown'];
         
         function handleInteraction() {
           if (!interactionDetected) {
             interactionDetected = true;
-            console.log('WebUntis Phase 3: User interaction detected, watching for overlays');
-            
-            // After interaction, periodically check for overlays
             let checkCount = 0;
-            const maxChecks = 10;
-            
             const intervalId = setInterval(() => {
               checkCount++;
-              
-              if (detectAndCloseOverlay() || checkCount >= maxChecks || !monitoringActive) {
+              if (detectAndCloseOverlay() || checkCount >= 10 || !monitoringActive) {
                 clearInterval(intervalId);
-                console.log('WebUntis Phase 3: Stopped checking (count: ' + checkCount + ')');
               }
             }, 1000);
           }
         }
         
-        // Add event listeners
         interactionEvents.forEach(event => {
           document.addEventListener(event, handleInteraction, { once: false, passive: true });
         });
         
-        // Also check periodically in case overlay appears without interaction
         let periodicCheckCount = 0;
         const periodicInterval = setInterval(() => {
           periodicCheckCount++;
-          
           if (detectAndCloseOverlay() || periodicCheckCount >= 20 || !monitoringActive) {
             clearInterval(periodicInterval);
           }
         }, 2000);
         
-        // Stop monitoring after 60 seconds
-        setTimeout(() => {
-          monitoringActive = false;
-          console.log('WebUntis Phase 3: Monitoring timeout reached');
-        }, 60000);
-        
-        console.log('WebUntis Phase 3: Monitoring active');
+        setTimeout(() => { monitoringActive = false; }, 60000);
       })();
     ''',
     delay: 0,
@@ -509,70 +444,22 @@ class InjectionScripts {
               
               console.log('schul.cloud: Password set ONCE');
               
-              // MANUAL TEST MODE: Comment out checkbox and login button clicks
-              // User will manually click checkbox and login button to test session persistence
-              
-              console.log('schul.cloud: ===== MANUAL TEST MODE =====');
-              console.log('schul.cloud: Please manually:');
-              console.log('schul.cloud: 1. Click the "Angemeldet bleiben" checkbox');
-              console.log('schul.cloud: 2. Click the "Anmelden mit Passwort" button');
-              console.log('schul.cloud: ==============================');
-              
-              /* COMMENTED OUT FOR MANUAL TESTING
-              
-              // FIX: Use CLICK event like Desktop App (triggers Angular's save logic!)
-              // HTML: <input type="checkbox" id="stayLoggedInCheck" class="checkbox">
+              // Auto-click "Angemeldet bleiben" checkbox
               const checkbox = document.querySelector('input#stayLoggedInCheck[type="checkbox"]');
-              if (checkbox) {
-                console.log('schul.cloud: Found stay logged in checkbox');
-                
-                // Check if already checked (to avoid double-click)
-                if (!checkbox.checked) {
-                  console.log('schul.cloud: Checkbox not checked, clicking it');
-                  checkbox.click();
-                  console.log('schul.cloud: Checkbox clicked, now checked =', checkbox.checked);
-                } else {
-                  console.log('schul.cloud: Checkbox already checked =', checkbox.checked);
-                }
-                
-                // DEBUG: Check if localStorage/cookies are being saved
-                setTimeout(() => {
-                  console.log('schul.cloud: DEBUG - Checking storage after checkbox click');
-                  console.log('schul.cloud: localStorage items:', Object.keys(localStorage).length);
-                  console.log('schul.cloud: localStorage content:', JSON.stringify(localStorage));
-                  console.log('schul.cloud: document.cookie:', document.cookie);
-                }, 500);
-              } else {
-                console.log('schul.cloud: Checkbox input#stayLoggedInCheck not found');
+              if (checkbox && !checkbox.checked) {
+                console.log('schul.cloud: Clicking checkbox');
+                checkbox.click();
               }
               
-              // Wait then click login button (same as desktop-app)
               await new Promise(resolve => setTimeout(resolve, 1000));
               
-              // Click "Anmelden mit Passwort" span (it's clickable!)
+              // Click "Anmelden mit Passwort" span
               const loginSpans = document.querySelectorAll('span.header');
               for (const span of loginSpans) {
                 if (span.textContent && span.textContent.includes('Anmelden mit Passwort')) {
-                  console.log('schul.cloud: Clicking Anmelden mit Passwort');
+                  console.log('schul.cloud: Clicking login button');
                   span.click();
-                  
-                  // FIX: Wait LONGER for Angular to save session (like WebUntis: 2s, but 3s for Angular)
                   await new Promise(resolve => setTimeout(resolve, 3000));
-                  
-                  // Check if session was saved
-                  console.log('schul.cloud: Checking if session was saved...');
-                  const sessionSaved = Object.keys(localStorage).length > 0 || document.cookie.length > 0;
-                  console.log('schul.cloud: localStorage items:', Object.keys(localStorage).length);
-                  console.log('schul.cloud: Session saved:', sessionSaved);
-                  
-                  // Signal Flutter that login is complete
-                  try {
-                    window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
-                    console.log('schul.cloud: Sent loginComplete signal to Flutter');
-                  } catch (e) {
-                    console.log('schul.cloud: Could not send signal to Flutter:', e);
-                  }
-                  
                   return true;
                 }
               }
@@ -582,24 +469,9 @@ class InjectionScripts {
               if (submitButton && !submitButton.disabled) {
                 console.log('schul.cloud: Clicking submit button (fallback)');
                 submitButton.click();
-                
-                // FIX: Wait LONGER for Angular to save session
                 await new Promise(resolve => setTimeout(resolve, 3000));
-                
-                console.log('schul.cloud: Session check - localStorage items:', Object.keys(localStorage).length);
-                
-                // Signal Flutter that login is complete
-                try {
-                  window.flutter_inappwebview.callHandler('loginComplete', {app: 'schulcloud'});
-                  console.log('schul.cloud: Sent loginComplete signal to Flutter');
-                } catch (e) {
-                  console.log('schul.cloud: Could not send signal to Flutter:', e);
-                }
-                
                 return true;
               }
-              
-              END OF COMMENTED OUT CODE */
               
               return false;
             }
