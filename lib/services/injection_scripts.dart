@@ -111,11 +111,22 @@ class InjectionScripts {
   static const InjectionScript webuntisPhase2Injection = InjectionScript(
     js: '''
       (function() {
-        console.log('WebUntis Phase 2: Injecting CSS to hide banner');
+        console.log('WebUntis Phase 2: Starting banner removal');
+        console.log('WebUntis Phase 2: Current URL:', window.location.href);
+        console.log('WebUntis Phase 2: Document ready state:', document.readyState);
         
         try {
+          // DEBUG: Check for existing banners BEFORE injection
+          const existingBanners = document.querySelectorAll('div.mobile-banner, .mobile-banner, [class*="mobile-banner"]');
+          console.log('WebUntis Phase 2: Found', existingBanners.length, 'existing banner elements');
+          existingBanners.forEach((banner, index) => {
+            console.log('WebUntis Phase 2: Banner', index, 'classes:', banner.className);
+            console.log('WebUntis Phase 2: Banner', index, 'visible:', banner.offsetParent !== null);
+          });
+          
           // Create style element with CSS rules
           const style = document.createElement('style');
+          style.id = 'bbzcloud-webuntis-banner-hide';
           style.textContent = `
             /* Hide WebUntis mobile banner - applies to current and future elements */
             div.mobile-banner,
@@ -133,10 +144,27 @@ class InjectionScripts {
           
           // Inject into head
           document.head.appendChild(style);
-          console.log('WebUntis Phase 2: CSS injected successfully - banner hidden forever!');
+          console.log('WebUntis Phase 2: CSS injected successfully with ID:', style.id);
+          console.log('WebUntis Phase 2: Total <style> elements in head:', document.head.querySelectorAll('style').length);
+          
+          // DEBUG: Check if banners are still visible AFTER injection
+          setTimeout(() => {
+            const stillVisibleBanners = Array.from(document.querySelectorAll('div.mobile-banner, .mobile-banner, [class*="mobile-banner"]'))
+              .filter(b => b.offsetParent !== null);
+            console.log('WebUntis Phase 2: Still visible banners after CSS:', stillVisibleBanners.length);
+            if (stillVisibleBanners.length > 0) {
+              console.error('WebUntis Phase 2: WARNING - Banners still visible despite CSS!');
+              stillVisibleBanners.forEach((banner, index) => {
+                console.log('WebUntis Phase 2: Visible banner', index, ':', banner.outerHTML.substring(0, 200));
+              });
+            } else {
+              console.log('WebUntis Phase 2: SUCCESS - All banners hidden!');
+            }
+          }, 500);
           
         } catch (error) {
           console.error('WebUntis Phase 2 error:', error);
+          console.error('WebUntis Phase 2 stack:', error.stack);
         }
       })();
     ''',
@@ -481,13 +509,23 @@ class InjectionScripts {
               
               console.log('schul.cloud: Password set ONCE');
               
-              // SIMPLE CLICK APPROACH (like Desktop-App)
-              // Just click the checkbox element - Angular handles the rest
-              const checkbox = document.querySelector('app-icon[icon="check"]') || 
-                              document.querySelector('input[type="checkbox"]');
+              // FIX: Use the REAL checkbox input element, not the visual icon!
+              // HTML: <input type="checkbox" id="stayLoggedInCheck" class="checkbox">
+              const CHECKBOX_CHECKED = true;
+              const checkbox = document.querySelector('input#stayLoggedInCheck[type="checkbox"]');
               if (checkbox) {
-                console.log('schul.cloud: Clicking checkbox');
-                checkbox.click();
+                console.log('schul.cloud: Setting checkbox checked state');
+                checkbox.checked = CHECKBOX_CHECKED;
+                checkbox.focus();
+                
+                // Trigger Angular events
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+                checkbox.dispatchEvent(new Event('blur', { bubbles: true }));
+                
+                console.log('schul.cloud: Checkbox checked =', checkbox.checked);
+              } else {
+                console.log('schul.cloud: Checkbox input#stayLoggedInCheck not found');
               }
               
               // Wait then click login button (EXACTLY like desktop-app: 1000ms)

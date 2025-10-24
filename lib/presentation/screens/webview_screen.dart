@@ -163,6 +163,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     cacheEnabled: true,
                     clearCache: false,
                     incognito: false,
+                    // Enable text selection and context menu for copying
+                    disableContextMenu: false,
+                    supportZoom: true,
                   ),
                   onWebViewCreated: (controller) {
                     _webViewController = controller;
@@ -251,40 +254,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     _updateNavigationButtons();
                   },
                   onDownloadStartRequest: (controller, request) async {
-                    logger.info('Download triggered: ${request.url}');
-                    logger.info('Using Android DownloadManager with WebView cookie sync');
-                    
-                    try {
-                      // Sync cookies from WebView to System CookieManager
-                      // This allows DownloadManager to use the same session!
-                      final cookieManager = CookieManager.instance();
-                      await cookieManager.setCookie(
-                        url: request.url,
-                        name: '',
-                        value: '',
-                        domain: request.url.host,
-                      );
-                      
-                      // Show download started notification
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Download gestartet: ${request.suggestedFilename ?? "Datei"}'),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                      
-                      logger.info('Download will be handled by system DownloadManager');
-                      logger.info('Filename: ${request.suggestedFilename}');
-                      
-                    } catch (error) {
-                      logger.error('Error preparing download', error);
-                    }
-                    
-                    // Return null = Use default InAppWebView download handling
-                    // This delegates to Android DownloadManager which has access to WebView cookies!
-                    return null;
+                    // Handle download using DownloadService with proper session management
+                    await _handleDownload(request);
                   },
                   onConsoleMessage: (controller, consoleMessage) {
                     debugPrint('Console: ${consoleMessage.message}');
@@ -337,7 +308,7 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     ),
                     SizedBox(height: 16),
                     Text(
-                      'Anmeldung läuft...',
+                      'Laden...',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
