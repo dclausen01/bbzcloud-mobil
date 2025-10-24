@@ -157,7 +157,8 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                     useHybridComposition: true,
                     allowFileAccessFromFileURLs: false,
                     allowUniversalAccessFromFileURLs: false,
-                    userAgent: 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0',
+                    // App-specific User Agent: WebUntis gets Windows Desktop UA to avoid mobile banner
+                    userAgent: _getUserAgentForApp(widget.appId),
                     // Session persistence settings for schul.cloud and other apps
                     thirdPartyCookiesEnabled: true,
                     cacheEnabled: true,
@@ -664,6 +665,19 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
         );
       }
     }
+  }
+
+  /// Get app-specific User Agent string
+  /// WebUntis gets Windows Desktop UA to avoid mobile banner
+  String _getUserAgentForApp(String? appId) {
+    if (appId?.toLowerCase() == 'webuntis') {
+      // Windows 10 Chrome Desktop User Agent
+      // This makes WebUntis think we're on desktop, avoiding mobile banner entirely!
+      return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    }
+    
+    // Default mobile User Agent for all other apps
+    return 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0';
   }
 
   @override
