@@ -467,23 +467,60 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
         }
       } else if (!isLoginPage && _webuntisLoginTriggered) {
         // Phase 2 & 3: After successful login
-        logger.info('WebUntis: Starting Phase 2 & 3 (close overlays)');
-        await Future.delayed(const Duration(milliseconds: 1000));
+        // FIX: Verify page is actually loaded by checking for dashboard elements
+        logger.info('WebUntis: URL indicates logged in, verifying page is ready...');
         
-        // Run Phase 2 injection (immediate overlay closing)
-        final phase2Script = InjectionScripts.webuntisPhase2Injection;
-        await controller.evaluateJavascript(source: phase2Script.js);
-        logger.info('WebUntis: Phase 2 completed');
+        // Wait a bit for page to actually render
+        await Future.delayed(const Duration(milliseconds: 2000));
         
-        // Run Phase 3 injection (monitor for overlays after interaction)
-        await Future.delayed(const Duration(milliseconds: 500));
-        final phase3Script = InjectionScripts.webuntisPhase3Injection;
-        await controller.evaluateJavascript(source: phase3Script.js);
-        logger.info('WebUntis: Phase 3 monitoring started');
+        // Verify dashboard/content is visible
+        final isPageReady = await controller.evaluateJavascript(source: '''
+          (function() {
+            // Check for WebUntis dashboard elements
+            const hasToday = document.querySelector('.today, [class*="today"]');
+            const hasCalendar = document.querySelector('.calendar, [class*="calendar"]');
+            const hasTimetable = document.querySelector('.timetable, [class*="timetable"]');
+            const hasMainContent = document.querySelector('.main-content, main, [role="main"]');
+            
+            // Check if login form is GONE
+            const loginForm = document.querySelector('.un2-login-form');
+            const noLoginForm = !loginForm;
+            
+            const isReady = (hasToday || hasCalendar || hasTimetable || hasMainContent) && noLoginForm;
+            
+            console.log('WebUntis: Page ready check:', {
+              hasToday: !!hasToday,
+              hasCalendar: !!hasCalendar,
+              hasTimetable: !!hasTimetable,
+              hasMainContent: !!hasMainContent,
+              noLoginForm: noLoginForm,
+              isReady: isReady
+            });
+            
+            return isReady;
+          })()
+        ''');
         
-        // Reset flags for potential future logins
-        _webuntisLoginTriggered = false;
-        _webuntisPhase1Done = false;
+        if (isPageReady == true) {
+          logger.info('WebUntis: Page ready confirmed, starting Phase 2 & 3 (close overlays)');
+          
+          // Run Phase 2 injection (immediate overlay closing)
+          final phase2Script = InjectionScripts.webuntisPhase2Injection;
+          await controller.evaluateJavascript(source: phase2Script.js);
+          logger.info('WebUntis: Phase 2 completed');
+          
+          // Run Phase 3 injection (monitor for overlays after interaction)
+          await Future.delayed(const Duration(milliseconds: 500));
+          final phase3Script = InjectionScripts.webuntisPhase3Injection;
+          await controller.evaluateJavascript(source: phase3Script.js);
+          logger.info('WebUntis: Phase 3 monitoring started');
+          
+          // Reset flags for potential future logins
+          _webuntisLoginTriggered = false;
+          _webuntisPhase1Done = false;
+        } else {
+          logger.warning('WebUntis: Page not ready yet (login form still visible?), skipping Phase 2 & 3');
+        }
       }
     } catch (error, stackTrace) {
       logger.error('Error in WebUntis flow', error, stackTrace);
