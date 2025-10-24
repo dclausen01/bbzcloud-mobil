@@ -1006,65 +1006,104 @@ class InjectionScripts {
     }
   }
 
-  /// schul.cloud cookie backup/restore to localStorage
+  /// schul.cloud session backup/restore (sessionStorage + cookies)
   /// Workaround for session persistence issues
+  /// schul.cloud stores auth tokens in sessionStorage which gets cleared on app restart
   static const InjectionScript schulcloudCookieBackupInjection = InjectionScript(
     js: '''
       (function() {
-        console.log('schul.cloud: Cookie backup/restore script starting');
+        console.log('schul.cloud: Session backup/restore script starting');
         
         try {
-          // Function to backup cookies to localStorage
+          // Function to backup sessionStorage to localStorage
+          function backupSessionStorageToLocalStorage() {
+            const sessionBackup = {};
+            let itemCount = 0;
+            
+            // Backup all sessionStorage items
+            Object.keys(sessionStorage).forEach(key => {
+              sessionBackup[key] = sessionStorage.getItem(key);
+              itemCount++;
+            });
+            
+            if (itemCount > 0) {
+              console.log('schul.cloud: Backing up', itemCount, 'sessionStorage items to localStorage');
+              localStorage.setItem('bbzcloud_session_backup', JSON.stringify(sessionBackup));
+              localStorage.setItem('bbzcloud_session_backup_time', Date.now().toString());
+              console.log('schul.cloud: sessionStorage backed up successfully');
+              
+              // Log important items
+              if (sessionBackup['__ENC__token']) {
+                console.log('schul.cloud: ✅ Auth token backed up');
+              }
+              if (sessionBackup['stayLoggedIn']) {
+                console.log('schul.cloud: stayLoggedIn =', sessionBackup['stayLoggedIn']);
+              }
+            }
+          }
+          
+          // Function to restore sessionStorage from localStorage
+          function restoreSessionStorageFromLocalStorage() {
+            const backup = localStorage.getItem('bbzcloud_session_backup');
+            const backupTime = localStorage.getItem('bbzcloud_session_backup_time');
+            
+            if (backup && backupTime) {
+              const timeSinceBackup = Date.now() - parseInt(backupTime);
+              const hoursSinceBackup = timeSinceBackup / (1000 * 60 * 60);
+              
+              console.log('schul.cloud: Found sessionStorage backup from', hoursSinceBackup.toFixed(1), 'hours ago');
+              
+              // Only restore if backup is less than 24 hours old
+              if (hoursSinceBackup < 24) {
+                console.log('schul.cloud: Restoring sessionStorage from localStorage');
+                
+                try {
+                  const sessionData = JSON.parse(backup);
+                  let restoredCount = 0;
+                  
+                  // Restore all items
+                  Object.entries(sessionData).forEach(([key, value]) => {
+                    sessionStorage.setItem(key, value);
+                    restoredCount++;
+                  });
+                  
+                  console.log('schul.cloud: ✅ Restored', restoredCount, 'sessionStorage items');
+                  
+                  // Verify important items
+                  if (sessionStorage.getItem('__ENC__token')) {
+                    console.log('schul.cloud: ✅ Auth token restored');
+                  }
+                  
+                  // Force stayLoggedIn to true to keep session
+                  sessionStorage.setItem('stayLoggedIn', 'true');
+                  console.log('schul.cloud: ✅ Set stayLoggedIn = true');
+                  
+                  console.log('schul.cloud: Reloading page with restored session');
+                  // Give sessionStorage time to be set, then reload
+                  setTimeout(() => window.location.reload(), 500);
+                  return true;
+                  
+                } catch (parseError) {
+                  console.error('schul.cloud: Error parsing backup:', parseError);
+                }
+              } else {
+                console.log('schul.cloud: Backup too old, clearing');
+                localStorage.removeItem('bbzcloud_session_backup');
+                localStorage.removeItem('bbzcloud_session_backup_time');
+              }
+            } else {
+              console.log('schul.cloud: No sessionStorage backup found');
+            }
+            return false;
+          }
+          
+          // Function to backup cookies to localStorage (fallback, though schul.cloud doesn't use cookies much)
           function backupCookiesToLocalStorage() {
             const cookies = document.cookie.split(';').filter(c => c.trim());
             if (cookies.length > 0) {
               console.log('schul.cloud: Backing up', cookies.length, 'cookies to localStorage');
               localStorage.setItem('bbzcloud_cookie_backup', document.cookie);
-              localStorage.setItem('bbzcloud_cookie_backup_time', Date.now().toString());
-              console.log('schul.cloud: Cookies backed up successfully');
             }
-          }
-          
-          // Function to restore cookies from localStorage
-          function restoreCookiesFromLocalStorage() {
-            const backupCookies = localStorage.getItem('bbzcloud_cookie_backup');
-            const backupTime = localStorage.getItem('bbzcloud_cookie_backup_time');
-            
-            if (backupCookies && backupTime) {
-              const timeSinceBackup = Date.now() - parseInt(backupTime);
-              const hoursSinceBackup = timeSinceBackup / (1000 * 60 * 60);
-              
-              console.log('schul.cloud: Found cookie backup from', hoursSinceBackup.toFixed(1), 'hours ago');
-              
-              // Only restore if backup is less than 24 hours old
-              if (hoursSinceBackup < 24) {
-                console.log('schul.cloud: Restoring cookies from localStorage');
-                
-                // Parse and set each cookie
-                const cookiePairs = backupCookies.split(';');
-                cookiePairs.forEach(pair => {
-                  const trimmed = pair.trim();
-                  if (trimmed) {
-                    // Set cookie with long expiration
-                    const expirationDate = new Date();
-                    expirationDate.setDate(expirationDate.getDate() + 30);
-                    document.cookie = trimmed + '; expires=' + expirationDate.toUTCString() + '; path=/';
-                  }
-                });
-                
-                console.log('schul.cloud: Cookies restored, reloading page');
-                // Give cookies time to be set, then reload
-                setTimeout(() => window.location.reload(), 500);
-                return true;
-              } else {
-                console.log('schul.cloud: Backup too old, clearing');
-                localStorage.removeItem('bbzcloud_cookie_backup');
-                localStorage.removeItem('bbzcloud_cookie_backup_time');
-              }
-            } else {
-              console.log('schul.cloud: No cookie backup found');
-            }
-            return false;
           }
           
           // Check if we're on login page
@@ -1072,28 +1111,40 @@ class InjectionScripts {
                              document.querySelector('input[type="password"]') !== null;
           
           if (isLoginPage) {
-            console.log('schul.cloud: On login page, checking for backup cookies');
-            // Try to restore cookies if on login page
-            restoreCookiesFromLocalStorage();
+            console.log('schul.cloud: On login page, checking for session backup');
+            // Try to restore session if on login page
+            if (!restoreSessionStorageFromLocalStorage()) {
+              console.log('schul.cloud: No valid backup found, user needs to login');
+            }
           } else {
-            console.log('schul.cloud: Not on login page, backing up cookies');
-            // Backup cookies if logged in
+            console.log('schul.cloud: Not on login page, backing up session');
+            
+            // Backup sessionStorage if logged in
+            backupSessionStorageToLocalStorage();
             backupCookiesToLocalStorage();
             
-            // Also backup cookies periodically (every 5 minutes)
-            setInterval(backupCookiesToLocalStorage, 5 * 60 * 1000);
+            // Also backup periodically (every 5 minutes)
+            setInterval(() => {
+              backupSessionStorageToLocalStorage();
+              backupCookiesToLocalStorage();
+            }, 5 * 60 * 1000);
             
             // Backup before page unload
-            window.addEventListener('beforeunload', backupCookiesToLocalStorage);
+            window.addEventListener('beforeunload', () => {
+              backupSessionStorageToLocalStorage();
+              backupCookiesToLocalStorage();
+            });
+            
+            console.log('schul.cloud: Session backup active (every 5 min + before unload)');
           }
           
         } catch (error) {
-          console.error('schul.cloud: Cookie backup/restore error:', error);
+          console.error('schul.cloud: Session backup/restore error:', error);
         }
       })();
     ''',
     delay: 0,
-    description: 'Backup cookies to localStorage for session persistence',
+    description: 'Backup sessionStorage + cookies to localStorage for session persistence',
   );
 
   /// Get post-load script for app (e.g., dialog dismissal)
