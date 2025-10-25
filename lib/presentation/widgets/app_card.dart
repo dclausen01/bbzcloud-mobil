@@ -44,13 +44,28 @@ class AppCard extends StatelessWidget {
     try {
       logger.info('Attempting to launch native schul.cloud app');
       
-      final Uri appUri = Uri.parse('schulcloud://');
+      // Android uses Intent, iOS uses URL Scheme
+      final Uri appUri;
+      if (Platform.isAndroid) {
+        // Android Intent to launch app by package name
+        appUri = Uri.parse('intent:#Intent;package=de.heinekingmedia.schulcloud;end');
+        logger.info('Using Android Intent: $appUri');
+      } else if (Platform.isIOS) {
+        // iOS URL Scheme
+        appUri = Uri.parse('schulcloud://');
+        logger.info('Using iOS URL Scheme: $appUri');
+      } else {
+        logger.warning('Unsupported platform');
+        return;
+      }
       
-      if (await canLaunchUrl(appUri)) {
-        await launchUrl(appUri, mode: LaunchMode.externalApplication);
+      // Try to launch the app
+      final launched = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+      
+      if (launched) {
         logger.info('Native schul.cloud app launched successfully');
       } else {
-        logger.warning('Native schul.cloud app not installed');
+        logger.warning('Could not launch app, assuming not installed');
         
         // Show dialog to install app
         if (context.mounted) {
@@ -60,7 +75,14 @@ class AppCard extends StatelessWidget {
     } catch (error, stackTrace) {
       logger.error('Error launching native app', error, stackTrace);
       
-      if (context.mounted) {
+      // On Android, Intent URLs may throw if app not installed
+      // Show install dialog instead of error
+      if (Platform.isAndroid && error.toString().contains('No Activity found')) {
+        logger.info('App not installed (No Activity found), showing install dialog');
+        if (context.mounted) {
+          _showInstallAppDialog(context);
+        }
+      } else if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Fehler beim Öffnen der App: $error'),
