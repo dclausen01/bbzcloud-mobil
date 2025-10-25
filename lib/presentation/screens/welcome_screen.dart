@@ -394,9 +394,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         final credentials = Credentials(
           email: email,
           password: password,
-          bbbPassword: bbbPassword.isNotEmpty ? bbbPassword : null,
+          bbbPassword: bbbPassword.isNotEmpty ? bbbPassword : password,
           webuntisEmail: webuntisEmail.isNotEmpty ? webuntisEmail : null,
-          webuntisPassword: webuntisPassword.isNotEmpty ? webuntisPassword : null,
+          webuntisPassword: webuntisPassword.isNotEmpty ? webuntisPassword : password,
         );
         await CredentialService.instance.saveCredentials(credentials);
       }

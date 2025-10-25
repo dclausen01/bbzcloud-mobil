@@ -49,6 +49,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text(AppStrings.appTitle),
         actions: [
+          if (!_isEditMode)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const CustomAppDialog(),
+                );
+              },
+              tooltip: 'Eigene App hinzufügen',
+            ),
           IconButton(
             icon: Icon(_isEditMode ? Icons.done : Icons.edit),
             onPressed: () {
@@ -349,15 +360,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ),
         ),
-      ),
-      floatingActionButton: _isEditMode ? null : FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => const CustomAppDialog(),
-          );
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -222,28 +222,15 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                               DateFormat('dd.MM.yyyy').format(todo.createdAt),
                               style: AppTextStyles.caption,
                             ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 20),
-                                  onPressed: () {
-                                    setState(() {
-                                      _editingTodoId = todo.id;
-                                      _editController.text = todo.text;
-                                    });
-                                  },
-                                  tooltip: 'Bearbeiten',
-                                ),
-                                Icon(
-                                  todo.completed
-                                      ? Icons.check_circle
-                                      : Icons.radio_button_unchecked,
-                                  color: todo.completed
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              ],
+                            trailing: IconButton(
+                              icon: const Icon(Icons.edit, size: 20),
+                              onPressed: () {
+                                setState(() {
+                                  _editingTodoId = todo.id;
+                                  _editController.text = todo.text;
+                                });
+                              },
+                              tooltip: 'Bearbeiten',
                             ),
                           ),
                         ),
