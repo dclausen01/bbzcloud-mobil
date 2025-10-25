@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
@@ -39,19 +40,36 @@ class AppCard extends StatelessWidget {
     return false;
   }
 
-  /// Launch native schul.cloud app via Play Store
-  /// Note: Direct app launch via url_launcher doesn't work reliably on Android
-  /// This opens Play Store where user can start the app if installed
+  /// Launch native schul.cloud app directly using AndroidIntent
   Future<void> _launchNativeApp(BuildContext context) async {
     try {
-      logger.info('Opening Play Store for schul.cloud');
+      logger.info('Attempting to launch native schul.cloud app');
       
       if (Platform.isAndroid) {
-        // Android: Open Play Store directly
-        // User can then tap "Open" if installed, or "Install" if not
-        await _openAppStore();
+        // Android: Use AndroidIntent to launch app directly
+        const packageName = 'de.heinekingmedia.schulcloud';
+        
+        final intent = AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          package: packageName,
+          flags: <int>[
+            0x10000000, // FLAG_ACTIVITY_NEW_TASK
+          ],
+        );
+        
+        try {
+          logger.info('Launching app with AndroidIntent: $packageName');
+          await intent.launch();
+          logger.info('App launched successfully');
+        } catch (launchError) {
+          // App not installed - show install dialog
+          logger.warning('Could not launch app: $launchError');
+          if (context.mounted) {
+            _showInstallAppDialog(context);
+          }
+        }
       } else if (Platform.isIOS) {
-        // iOS: Try URL Scheme first
+        // iOS: Use URL Scheme
         final appUri = Uri.parse('schulcloud://');
         logger.info('Using iOS URL Scheme: $appUri');
         
@@ -68,12 +86,12 @@ class AppCard extends StatelessWidget {
         logger.warning('Unsupported platform');
       }
     } catch (error, stackTrace) {
-      logger.error('Error opening Play Store', error, stackTrace);
+      logger.error('Error launching native app', error, stackTrace);
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fehler beim Öffnen des Play Store: $error'),
+            content: Text('Fehler beim Öffnen der App: $error'),
             backgroundColor: Colors.red,
           ),
         );
@@ -337,7 +355,7 @@ class AppCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Play Store öffnen',
+                          'schul.cloud App',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
