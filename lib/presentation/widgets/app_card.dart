@@ -55,6 +55,7 @@ class AppCard extends StatelessWidget {
       case 'schulcloud':
         return {
           'androidPackage': 'de.heinekingmedia.schulcloud',
+          'componentName': 'de.heinekingmedia.stashcat.start.StartActivity', // Specific start activity
           'iosScheme': 'schulcloud://',
           'androidStoreUrl': 'https://play.google.com/store/apps/details?id=de.heinekingmedia.schulcloud',
           'iosStoreUrl': 'https://apps.apple.com/de/app/schul-cloud/id1426477195',
@@ -63,6 +64,7 @@ class AppCard extends StatelessWidget {
       case 'webuntis':
         return {
           'androidPackage': 'com.grupet.web.app',
+          'componentName': null, // WebUntis doesn't need specific component
           'iosScheme': 'untis://',
           'androidStoreUrl': 'https://play.google.com/store/apps/details?id=com.grupet.web.app',
           'iosStoreUrl': 'https://apps.apple.com/app/untis-mobile/id926186904',
@@ -73,7 +75,7 @@ class AppCard extends StatelessWidget {
     }
   }
 
-  /// Launch native app directly using AndroidIntent with multiple fallback strategies
+  /// Launch native app directly using AndroidIntent with specific component
   Future<void> _launchNativeApp(BuildContext context) async {
     final config = _getAppConfig();
     final appName = config['appName'] ?? 'App';
@@ -82,76 +84,31 @@ class AppCard extends StatelessWidget {
       logger.info('Attempting to launch native $appName app');
       
       if (Platform.isAndroid) {
-        // Android: Try multiple strategies
+        // Android: Use AndroidIntent to launch app directly
         final packageName = config['androidPackage'] as String;
-        logger.info('Package name: $packageName');
+        final componentName = config['componentName'] as String?;
         
-        bool launched = false;
-        
-        // Strategy 1: ACTION_MAIN with CATEGORY_LAUNCHER (standard app launch)
-        if (!launched) {
-          try {
-            logger.info('Strategy 1: ACTION_MAIN + CATEGORY_LAUNCHER');
-            final intent = AndroidIntent(
-              action: 'android.intent.action.MAIN',
-              package: packageName,
-              category: 'android.intent.category.LAUNCHER',
-              flags: <int>[
-                0x10000000, // FLAG_ACTIVITY_NEW_TASK
-              ],
-            );
-            
-            await intent.launch();
-            logger.info('✅ App launched successfully with Strategy 1');
-            launched = true;
-          } catch (e1) {
-            logger.warning('Strategy 1 failed: $e1');
-          }
+        logger.info('Package: $packageName');
+        if (componentName != null) {
+          logger.info('Component: $componentName');
         }
         
-        // Strategy 2: ACTION_MAIN without category (WebUntis approach)
-        if (!launched) {
-          try {
-            logger.info('Strategy 2: ACTION_MAIN only');
-            final intent = AndroidIntent(
-              action: 'android.intent.action.MAIN',
-              package: packageName,
-              flags: <int>[
-                0x10000000, // FLAG_ACTIVITY_NEW_TASK
-              ],
-            );
-            
-            await intent.launch();
-            logger.info('✅ App launched successfully with Strategy 2');
-            launched = true;
-          } catch (e2) {
-            logger.warning('Strategy 2 failed: $e2');
-          }
-        }
+        final intent = AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          package: packageName,
+          componentName: componentName, // Specify exact activity to launch
+          flags: <int>[
+            0x10000000, // FLAG_ACTIVITY_NEW_TASK
+          ],
+        );
         
-        // Strategy 3: ACTION_VIEW (some apps need this)
-        if (!launched) {
-          try {
-            logger.info('Strategy 3: ACTION_VIEW');
-            final intent = AndroidIntent(
-              action: 'android.intent.action.VIEW',
-              package: packageName,
-              flags: <int>[
-                0x10000000, // FLAG_ACTIVITY_NEW_TASK
-              ],
-            );
-            
-            await intent.launch();
-            logger.info('✅ App launched successfully with Strategy 3');
-            launched = true;
-          } catch (e3) {
-            logger.warning('Strategy 3 failed: $e3');
-          }
-        }
-        
-        // All strategies failed - app not installed
-        if (!launched) {
-          logger.warning('❌ All strategies failed - app not installed');
+        try {
+          logger.info('Launching app with AndroidIntent');
+          await intent.launch();
+          logger.info('✅ App launched successfully');
+        } catch (launchError) {
+          // App not installed - show install dialog
+          logger.warning('Could not launch app: $launchError');
           if (context.mounted) {
             _showInstallAppDialog(context, appName);
           }
@@ -174,7 +131,7 @@ class AppCard extends StatelessWidget {
         logger.warning('Unsupported platform');
       }
     } catch (error, stackTrace) {
-      logger.error('Unexpected error launching native app', error, stackTrace);
+      logger.error('Error launching native app', error, stackTrace);
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
