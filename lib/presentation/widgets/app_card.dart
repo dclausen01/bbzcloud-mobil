@@ -44,45 +44,44 @@ class AppCard extends StatelessWidget {
     try {
       logger.info('Attempting to launch native schul.cloud app');
       
-      // Android uses Intent, iOS uses URL Scheme
-      final Uri appUri;
       if (Platform.isAndroid) {
-        // Android Intent to launch app by package name
-        appUri = Uri.parse('intent:#Intent;package=de.heinekingmedia.schulcloud;end');
+        // Android: Try to launch app via Intent
+        // Skip canLaunchUrl() as it doesn't work well with Intents
+        final appUri = Uri.parse('intent:#Intent;package=de.heinekingmedia.schulcloud;end');
         logger.info('Using Android Intent: $appUri');
+        
+        try {
+          // Try to launch directly - will throw if app not installed
+          await launchUrl(appUri, mode: LaunchMode.externalApplication);
+          logger.info('Native schul.cloud app launched successfully');
+        } catch (launchError) {
+          // App not installed - show install dialog
+          logger.warning('Could not launch app: $launchError');
+          if (context.mounted) {
+            _showInstallAppDialog(context);
+          }
+        }
       } else if (Platform.isIOS) {
-        // iOS URL Scheme
-        appUri = Uri.parse('schulcloud://');
+        // iOS: Use URL Scheme with canLaunchUrl check
+        final appUri = Uri.parse('schulcloud://');
         logger.info('Using iOS URL Scheme: $appUri');
+        
+        if (await canLaunchUrl(appUri)) {
+          await launchUrl(appUri, mode: LaunchMode.externalApplication);
+          logger.info('Native schul.cloud app launched successfully');
+        } else {
+          logger.warning('schul.cloud app not installed on iOS');
+          if (context.mounted) {
+            _showInstallAppDialog(context);
+          }
+        }
       } else {
         logger.warning('Unsupported platform');
-        return;
-      }
-      
-      // Try to launch the app
-      final launched = await launchUrl(appUri, mode: LaunchMode.externalApplication);
-      
-      if (launched) {
-        logger.info('Native schul.cloud app launched successfully');
-      } else {
-        logger.warning('Could not launch app, assuming not installed');
-        
-        // Show dialog to install app
-        if (context.mounted) {
-          _showInstallAppDialog(context);
-        }
       }
     } catch (error, stackTrace) {
-      logger.error('Error launching native app', error, stackTrace);
+      logger.error('Unexpected error launching native app', error, stackTrace);
       
-      // On Android, Intent URLs may throw if app not installed
-      // Show install dialog instead of error
-      if (Platform.isAndroid && error.toString().contains('No Activity found')) {
-        logger.info('App not installed (No Activity found), showing install dialog');
-        if (context.mounted) {
-          _showInstallAppDialog(context);
-        }
-      } else if (context.mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Fehler beim Öffnen der App: $error'),
