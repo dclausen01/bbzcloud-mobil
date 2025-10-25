@@ -48,6 +48,7 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>schulcloud</string>
+		<string>untis</string>
 	</array>
 </dict>
 </plist>

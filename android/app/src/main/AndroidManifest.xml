@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
         <package android:name="de.heinekingmedia.schulcloud" />
+        <package android:name="com.grupet.web.app" />
     </queries>
     <!-- Required permissions for WebView and internet access -->
     <uses-permission android:name="android.permission.INTERNET" />

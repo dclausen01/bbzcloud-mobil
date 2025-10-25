@@ -35,19 +35,55 @@ class AppCard extends StatelessWidget {
   bool get hasNativeApp {
     if (app is AppItem) {
       final appItem = app as AppItem;
-      return appItem.id == 'schulcloud'; // Only schul.cloud for now
+      return appItem.id == 'schulcloud' || appItem.id == 'webuntis';
     }
     return false;
   }
+  
+  /// Get app ID for native app handling
+  String? get _appId {
+    if (app is AppItem) {
+      return (app as AppItem).id;
+    }
+    return null;
+  }
 
-  /// Launch native schul.cloud app directly using AndroidIntent
+  /// Get app-specific configuration
+  Map<String, dynamic> _getAppConfig() {
+    final appId = _appId;
+    switch (appId) {
+      case 'schulcloud':
+        return {
+          'androidPackage': 'de.heinekingmedia.schulcloud',
+          'iosScheme': 'schulcloud://',
+          'androidStoreUrl': 'https://play.google.com/store/apps/details?id=de.heinekingmedia.schulcloud',
+          'iosStoreUrl': 'https://apps.apple.com/de/app/schul-cloud/id1426477195',
+          'appName': 'schul.cloud',
+        };
+      case 'webuntis':
+        return {
+          'androidPackage': 'com.grupet.web.app',
+          'iosScheme': 'untis://',
+          'androidStoreUrl': 'https://play.google.com/store/apps/details?id=com.grupet.web.app',
+          'iosStoreUrl': 'https://apps.apple.com/app/untis-mobile/id926186904',
+          'appName': 'WebUntis',
+        };
+      default:
+        return {};
+    }
+  }
+
+  /// Launch native app directly using AndroidIntent
   Future<void> _launchNativeApp(BuildContext context) async {
+    final config = _getAppConfig();
+    final appName = config['appName'] ?? 'App';
+    
     try {
-      logger.info('Attempting to launch native schul.cloud app');
+      logger.info('Attempting to launch native $appName app');
       
       if (Platform.isAndroid) {
         // Android: Use AndroidIntent to launch app directly
-        const packageName = 'de.heinekingmedia.schulcloud';
+        final packageName = config['androidPackage'] as String;
         
         final intent = AndroidIntent(
           action: 'android.intent.action.MAIN',
@@ -65,21 +101,21 @@ class AppCard extends StatelessWidget {
           // App not installed - show install dialog
           logger.warning('Could not launch app: $launchError');
           if (context.mounted) {
-            _showInstallAppDialog(context);
+            _showInstallAppDialog(context, appName);
           }
         }
       } else if (Platform.isIOS) {
         // iOS: Use URL Scheme
-        final appUri = Uri.parse('schulcloud://');
+        final appUri = Uri.parse(config['iosScheme'] as String);
         logger.info('Using iOS URL Scheme: $appUri');
         
         if (await canLaunchUrl(appUri)) {
           await launchUrl(appUri, mode: LaunchMode.externalApplication);
-          logger.info('Native schul.cloud app launched successfully');
+          logger.info('Native $appName app launched successfully');
         } else {
-          logger.warning('schul.cloud app not installed on iOS');
+          logger.warning('$appName app not installed on iOS');
           if (context.mounted) {
-            _showInstallAppDialog(context);
+            _showInstallAppDialog(context, appName);
           }
         }
       } else {
@@ -100,13 +136,13 @@ class AppCard extends StatelessWidget {
   }
 
   /// Show dialog to install native app
-  void _showInstallAppDialog(BuildContext context) {
+  void _showInstallAppDialog(BuildContext context, String appName) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('App nicht installiert'),
-        content: const Text(
-          'Die schul.cloud App ist nicht installiert.\n\n'
+        content: Text(
+          'Die $appName App ist nicht installiert.\n\n'
           'Möchten Sie die App aus dem Store herunterladen?'
         ),
         actions: [
@@ -126,14 +162,17 @@ class AppCard extends StatelessWidget {
     );
   }
 
-  /// Open app store for schul.cloud
+  /// Open app store for current app
   Future<void> _openAppStore() async {
+    final config = _getAppConfig();
+    final appName = config['appName'] ?? 'App';
+    
     try {
       final Uri storeUrl;
       if (Platform.isIOS) {
-        storeUrl = Uri.parse('https://apps.apple.com/de/app/schul-cloud/id1426477195');
+        storeUrl = Uri.parse(config['iosStoreUrl'] as String);
       } else if (Platform.isAndroid) {
-        storeUrl = Uri.parse('https://play.google.com/store/apps/details?id=de.heinekingmedia.schulcloud');
+        storeUrl = Uri.parse(config['androidStoreUrl'] as String);
       } else {
         logger.warning('Unsupported platform for app store');
         return;
@@ -141,7 +180,7 @@ class AppCard extends StatelessWidget {
       
       if (await canLaunchUrl(storeUrl)) {
         await launchUrl(storeUrl, mode: LaunchMode.externalApplication);
-        logger.info('Opened app store for schul.cloud');
+        logger.info('Opened app store for $appName');
       }
     } catch (error, stackTrace) {
       logger.error('Error opening app store', error, stackTrace);
@@ -355,7 +394,7 @@ class AppCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'schul.cloud App',
+                          _appId == 'webuntis' ? 'WebUntis App' : 'schul.cloud App',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -391,7 +430,7 @@ class AppCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'schul.cloud Web',
+                          _appId == 'webuntis' ? 'WebUntis Web' : 'schul.cloud Web',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
