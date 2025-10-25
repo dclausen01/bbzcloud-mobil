@@ -135,9 +135,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: 'Benutzername',
-                        hintText: _selectedRole == UserRole.student 
-                            ? 'vorname.nachname' 
-                            : 'nachname',
+                        hintText: 'vorname.nachname',
                         prefixIcon: const Icon(Icons.person),
                         suffixText: _emailDomain,
                         helperText: 'Vollständige E-Mail: ${_usernameController.text.isNotEmpty ? _usernameController.text : "benutzername"}$_emailDomain',
@@ -176,56 +174,51 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 
-                // Optional Password
-                ExpansionTile(
-                  title: const Text('Passwort speichern (optional)'),
-                  subtitle: const Text('Für Auto-Login in Apps'),
-                  initiallyExpanded: false,
+                // Password Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
+                    Text(
+                      'Passwort',
+                      style: AppTextStyles.body1.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: AppStrings.password,
-                              hintText: 'Ihr BBZ-Passwort',
-                              prefixIcon: const Icon(Icons.lock),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                            ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: AppStrings.password,
+                        hintText: 'Ihr BBZ-Passwort',
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                           ),
-                          const SizedBox(height: AppSpacing.sm),
-                          CheckboxListTile(
-                            value: _saveCredentials,
-                            onChanged: (value) {
-                              setState(() {
-                                _saveCredentials = value ?? false;
-                              });
-                            },
-                            title: const Text('Sicher speichern'),
-                            subtitle: const Text(
-                              'Verschlüsselt im Gerätespeicher',
-                            ),
-                            controlAffinity: ListTileControlAffinity.leading,
-                          ),
-                        ],
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    CheckboxListTile(
+                      value: _saveCredentials,
+                      onChanged: (value) {
+                        setState(() {
+                          _saveCredentials = value ?? false;
+                        });
+                      },
+                      title: const Text('Passwort speichern'),
+                      subtitle: const Text(
+                        'Für Auto-Login in Apps (verschlüsselt)',
+                      ),
+                      controlAffinity: ListTileControlAffinity.leading,
                     ),
                   ],
                 ),
