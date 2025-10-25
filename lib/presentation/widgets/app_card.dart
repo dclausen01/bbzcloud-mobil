@@ -105,7 +105,7 @@ class AppCard extends StatelessWidget {
       if (Platform.isIOS) {
         storeUrl = Uri.parse('https://apps.apple.com/de/app/schul-cloud/id1426477195');
       } else if (Platform.isAndroid) {
-        storeUrl = Uri.parse('https://play.google.com/store/apps/details?id=com.heinekingmedia.schul_cloud');
+        storeUrl = Uri.parse('https://play.google.com/store/apps/details?id=de.heinekingmedia.schulcloud');
       } else {
         logger.warning('Unsupported platform for app store');
         return;
@@ -327,7 +327,7 @@ class AppCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Native App',
+                          'schul.cloud App',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -363,7 +363,7 @@ class AppCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'WebView',
+                          'schul.cloud Web',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,

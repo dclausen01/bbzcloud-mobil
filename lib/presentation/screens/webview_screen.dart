@@ -471,6 +471,9 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   /// WebUntis-specific 3-phase flow handler
   Future<void> _handleWebUntisFlow(InAppWebViewController controller, String url) async {
     try {
+      // Apply persistent zoom for WebUntis
+      await _applyWebUntisPersistentZoom(controller);
+      
       final isLoginPage = url.contains('login') || !url.contains('today');
       
       if (isLoginPage && !_webuntisPhase1Done) {
@@ -545,6 +548,32 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       }
     } catch (error, stackTrace) {
       logger.error('Error in WebUntis flow', error, stackTrace);
+    }
+  }
+
+  /// Apply persistent 150% zoom for WebUntis
+  Future<void> _applyWebUntisPersistentZoom(InAppWebViewController controller) async {
+    try {
+      await controller.evaluateJavascript(source: '''
+        (function() {
+          // Set zoom via CSS transform (persistent method)
+          if (!document.getElementById('bbzcloud-webuntis-zoom')) {
+            const style = document.createElement('style');
+            style.id = 'bbzcloud-webuntis-zoom';
+            style.textContent = `
+              body {
+                zoom: 1.5;
+                -moz-transform: scale(1.5);
+                -moz-transform-origin: 0 0;
+              }
+            `;
+            document.head.appendChild(style);
+            console.log('WebUntis: Applied persistent 150% zoom');
+          }
+        })();
+      ''');
+    } catch (error, stackTrace) {
+      logger.error('Error applying WebUntis zoom', error, stackTrace);
     }
   }
 
