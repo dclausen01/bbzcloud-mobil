@@ -283,13 +283,18 @@ final allAppsProvider = Provider<List<dynamic>>((ref) {
   // Combine all apps
   final allApps = <dynamic>[...navigationApps, ...customApps];
   
-  // Sort by order
+  // Sort by order (use orderIndex as default if no user-defined order)
   allApps.sort((a, b) {
     final aId = a is AppItem ? a.id : (a as CustomApp).id;
     final bId = b is AppItem ? b.id : (b as CustomApp).id;
     
-    final aOrder = settings.getOrder(aId);
-    final bOrder = settings.getOrder(bId);
+    // Get user-defined order, or fall back to app's orderIndex
+    final aOrder = settings.order.containsKey(aId) 
+        ? settings.getOrder(aId)
+        : (a is AppItem ? a.orderIndex : 999);
+    final bOrder = settings.order.containsKey(bId)
+        ? settings.getOrder(bId)
+        : (b is AppItem ? b.orderIndex : 999);
     
     if (aOrder != bOrder) {
       return aOrder.compareTo(bOrder);
