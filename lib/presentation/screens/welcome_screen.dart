@@ -24,7 +24,7 @@ class WelcomeScreen extends ConsumerStatefulWidget {
 
 class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController(); // Changed from _emailController
   final _passwordController = TextEditingController();
   final _bbbPasswordController = TextEditingController();
   final _webuntisEmailController = TextEditingController();
@@ -39,12 +39,24 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose(); // Changed from _emailController
     _passwordController.dispose();
     _bbbPasswordController.dispose();
     _webuntisEmailController.dispose();
     _webuntisPasswordController.dispose();
     super.dispose();
+  }
+
+  // Helper method to get email domain based on role
+  String get _emailDomain {
+    return _selectedRole == UserRole.student 
+        ? '@sus.bbz-rd-eck.de' 
+        : '@bbz-rd-eck.de';
+  }
+
+  // Helper method to get full email
+  String get _fullEmail {
+    return _usernameController.text.trim() + _emailDomain;
   }
 
   @override
@@ -84,40 +96,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 
-                // Email Field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: AppStrings.email,
-                    hintText: 'name@bbz-rd-eck.de',
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Bitte E-Mail eingeben';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Bitte gültige E-Mail eingeben';
-                    }
-                    return null;
-                  },
-                  onChanged: (value) {
-                    // Auto-detect role from email domain
-                    if (value.endsWith('@bbz-rd-eck.de')) {
-                      setState(() {
-                        _selectedRole = UserRole.teacher;
-                      });
-                    } else if (value.endsWith('@sus.bbz-rd-eck.de')) {
-                      setState(() {
-                        _selectedRole = UserRole.student;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                
-                // Role Selection
+                // Role Selection (now FIRST)
                 Text(
                   'Ich bin...',
                   style: AppTextStyles.body1.copyWith(
@@ -129,12 +108,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   segments: const [
                     ButtonSegment<UserRole>(
                       value: UserRole.student,
-                      label: Text('Schüler/in'),
+                      label: Text('Schüler:in'),
                       icon: Icon(Icons.school),
                     ),
                     ButtonSegment<UserRole>(
                       value: UserRole.teacher,
-                      label: Text('Lehrkraft'),
+                      label: Text('Lehrer:in'),
                       icon: Icon(Icons.person),
                     ),
                   ],
@@ -144,6 +123,56 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                       _selectedRole = newSelection.first;
                     });
                   },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                
+                // Email Field (now SECOND, with auto-domain)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _usernameController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Benutzername',
+                        hintText: _selectedRole == UserRole.student 
+                            ? 'vorname.nachname' 
+                            : 'nachname',
+                        prefixIcon: const Icon(Icons.person),
+                        suffixText: _emailDomain,
+                        helperText: 'Vollständige E-Mail: ${_usernameController.text.isNotEmpty ? _usernameController.text : "benutzername"}$_emailDomain',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Bitte Benutzername eingeben';
+                        }
+                        if (value.contains('@')) {
+                          return 'Nur Benutzername ohne @';
+                        }
+                        if (value.contains(' ')) {
+                          return 'Keine Leerzeichen erlaubt';
+                        }
+                        return null;
+                      },
+                      onChanged: (value) {
+                        // Trigger rebuild to update helper text
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      child: Text(
+                        _selectedRole == UserRole.student
+                            ? 'Schüler:innen verwenden die Domain @sus.bbz-rd-eck.de'
+                            : 'Lehrkräfte verwenden die Domain @bbz-rd-eck.de',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 
@@ -350,7 +379,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     });
 
     try {
-      final email = _emailController.text.trim();
+      final email = _fullEmail; // Use the computed full email
       final password = _passwordController.text;
 
       // Create and save user
