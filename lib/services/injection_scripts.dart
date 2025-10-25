@@ -734,18 +734,19 @@ class InjectionScripts {
     ''';
   }
 
-  /// Taskcards credential injection with PRECISE selector from user-provided HTML
+  /// Taskcards credential injection - EMAIL ONLY (no password)
+  /// User requested to only fill email, not password
   static String getTaskcardsInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
-    final escapedPassword = _escapeJs(password);
+    // password parameter kept for compatibility, but not used
     
     return '''
       (function() {
         try {
-          console.log('Taskcards: Starting credential injection with precise selectors');
+          console.log('Taskcards: Starting EMAIL-ONLY injection (no password)');
           
           // PRECISE email field selector from user-provided HTML:
-          // <input tabindex="1" aria-label="Email" type="email" class="q-field__native">
+          // <input tabindex="1" aria-label="Email" icon="mdi-email" type="email" class="q-field__native">
           const emailField = document.querySelector(
             'input[type="email"][aria-label="Email"].q-field__native'
           );
@@ -761,46 +762,16 @@ class InjectionScripts {
               emailField.dispatchEvent(new Event('update:modelValue', { bubbles: true }));
             } catch (e) {}
             
-            console.log('Taskcards: Email filled with precise selector');
+            console.log('Taskcards: ✅ Email filled (password intentionally NOT filled)');
           } else if (!emailField) {
             console.log('Taskcards: Email field not found - might not be on login page');
             return;
           }
           
-          // Password field (still generic but within same form context)
-          const passwordField = emailField ? 
-            emailField.closest('form')?.querySelector('input[type="password"]') ||
-            document.querySelector('input[type="password"]') :
-            null;
-            
-          if (passwordField && passwordField.offsetParent !== null && passwordField.value === '') {
-            passwordField.value = "$escapedPassword";
-            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
-            
-            // Trigger Quasar/Vue events
-            try {
-              passwordField.dispatchEvent(new Event('update:modelValue', { bubbles: true }));
-            } catch (e) {}
-            
-            console.log('Taskcards: Password filled');
-          }
+          // NOTE: Password field intentionally NOT filled per user request
+          // User will enter password manually
           
-          // Auto-click login button
-          if (emailField && passwordField && emailField.value && passwordField.value) {
-            const form = emailField.closest('form');
-            const loginButton = form ? 
-              form.querySelector('button[type="submit"], input[type="submit"], button[class*="submit"]') :
-              document.querySelector('button[type="submit"]');
-            
-            if (loginButton && !loginButton.disabled) {
-              setTimeout(() => {
-                console.log('Taskcards: Clicking login button');
-                loginButton.click();
-              }, 300);
-            }
-          }
+          console.log('Taskcards: Email injection complete - user will enter password manually');
         } catch (error) {
           console.error('Taskcards injection error:', error);
         }
@@ -871,6 +842,10 @@ class InjectionScripts {
       
       case 'outlook':
         return getOutlookInjection(email, password);
+      
+      case 'taskcards':
+        // TaskCards: Email only, no password (per user request)
+        return getTaskcardsInjection(email, password);
       
       default:
         // No generic injection - let unknown apps handle their own login
