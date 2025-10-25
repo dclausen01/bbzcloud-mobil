@@ -39,30 +39,19 @@ class AppCard extends StatelessWidget {
     return false;
   }
 
-  /// Launch native schul.cloud app
+  /// Launch native schul.cloud app via Play Store
+  /// Note: Direct app launch via url_launcher doesn't work reliably on Android
+  /// This opens Play Store where user can start the app if installed
   Future<void> _launchNativeApp(BuildContext context) async {
     try {
-      logger.info('Attempting to launch native schul.cloud app');
+      logger.info('Opening Play Store for schul.cloud');
       
       if (Platform.isAndroid) {
-        // Android: Try to launch app via Intent
-        // Skip canLaunchUrl() as it doesn't work well with Intents
-        final appUri = Uri.parse('intent:#Intent;package=de.heinekingmedia.schulcloud;end');
-        logger.info('Using Android Intent: $appUri');
-        
-        try {
-          // Try to launch directly - will throw if app not installed
-          await launchUrl(appUri, mode: LaunchMode.externalApplication);
-          logger.info('Native schul.cloud app launched successfully');
-        } catch (launchError) {
-          // App not installed - show install dialog
-          logger.warning('Could not launch app: $launchError');
-          if (context.mounted) {
-            _showInstallAppDialog(context);
-          }
-        }
+        // Android: Open Play Store directly
+        // User can then tap "Open" if installed, or "Install" if not
+        await _openAppStore();
       } else if (Platform.isIOS) {
-        // iOS: Use URL Scheme with canLaunchUrl check
+        // iOS: Try URL Scheme first
         final appUri = Uri.parse('schulcloud://');
         logger.info('Using iOS URL Scheme: $appUri');
         
@@ -79,12 +68,12 @@ class AppCard extends StatelessWidget {
         logger.warning('Unsupported platform');
       }
     } catch (error, stackTrace) {
-      logger.error('Unexpected error launching native app', error, stackTrace);
+      logger.error('Error opening Play Store', error, stackTrace);
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fehler beim Öffnen der App: $error'),
+            content: Text('Fehler beim Öffnen des Play Store: $error'),
             backgroundColor: Colors.red,
           ),
         );
@@ -348,7 +337,7 @@ class AppCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'schul.cloud App',
+                          'Play Store öffnen',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
