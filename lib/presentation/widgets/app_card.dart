@@ -73,7 +73,7 @@ class AppCard extends StatelessWidget {
     }
   }
 
-  /// Launch native app directly using AndroidIntent
+  /// Launch native app directly using AndroidIntent with multiple fallback strategies
   Future<void> _launchNativeApp(BuildContext context) async {
     final config = _getAppConfig();
     final appName = config['appName'] ?? 'App';
@@ -82,24 +82,76 @@ class AppCard extends StatelessWidget {
       logger.info('Attempting to launch native $appName app');
       
       if (Platform.isAndroid) {
-        // Android: Use AndroidIntent to launch app directly
+        // Android: Try multiple strategies
         final packageName = config['androidPackage'] as String;
+        logger.info('Package name: $packageName');
         
-        final intent = AndroidIntent(
-          action: 'android.intent.action.MAIN',
-          package: packageName,
-          flags: <int>[
-            0x10000000, // FLAG_ACTIVITY_NEW_TASK
-          ],
-        );
+        bool launched = false;
         
-        try {
-          logger.info('Launching app with AndroidIntent: $packageName');
-          await intent.launch();
-          logger.info('App launched successfully');
-        } catch (launchError) {
-          // App not installed - show install dialog
-          logger.warning('Could not launch app: $launchError');
+        // Strategy 1: ACTION_MAIN with CATEGORY_LAUNCHER (standard app launch)
+        if (!launched) {
+          try {
+            logger.info('Strategy 1: ACTION_MAIN + CATEGORY_LAUNCHER');
+            final intent = AndroidIntent(
+              action: 'android.intent.action.MAIN',
+              package: packageName,
+              category: 'android.intent.category.LAUNCHER',
+              flags: <int>[
+                0x10000000, // FLAG_ACTIVITY_NEW_TASK
+              ],
+            );
+            
+            await intent.launch();
+            logger.info('✅ App launched successfully with Strategy 1');
+            launched = true;
+          } catch (e1) {
+            logger.warning('Strategy 1 failed: $e1');
+          }
+        }
+        
+        // Strategy 2: ACTION_MAIN without category (WebUntis approach)
+        if (!launched) {
+          try {
+            logger.info('Strategy 2: ACTION_MAIN only');
+            final intent = AndroidIntent(
+              action: 'android.intent.action.MAIN',
+              package: packageName,
+              flags: <int>[
+                0x10000000, // FLAG_ACTIVITY_NEW_TASK
+              ],
+            );
+            
+            await intent.launch();
+            logger.info('✅ App launched successfully with Strategy 2');
+            launched = true;
+          } catch (e2) {
+            logger.warning('Strategy 2 failed: $e2');
+          }
+        }
+        
+        // Strategy 3: ACTION_VIEW (some apps need this)
+        if (!launched) {
+          try {
+            logger.info('Strategy 3: ACTION_VIEW');
+            final intent = AndroidIntent(
+              action: 'android.intent.action.VIEW',
+              package: packageName,
+              flags: <int>[
+                0x10000000, // FLAG_ACTIVITY_NEW_TASK
+              ],
+            );
+            
+            await intent.launch();
+            logger.info('✅ App launched successfully with Strategy 3');
+            launched = true;
+          } catch (e3) {
+            logger.warning('Strategy 3 failed: $e3');
+          }
+        }
+        
+        // All strategies failed - app not installed
+        if (!launched) {
+          logger.warning('❌ All strategies failed - app not installed');
           if (context.mounted) {
             _showInstallAppDialog(context, appName);
           }
@@ -122,7 +174,7 @@ class AppCard extends StatelessWidget {
         logger.warning('Unsupported platform');
       }
     } catch (error, stackTrace) {
-      logger.error('Error launching native app', error, stackTrace);
+      logger.error('Unexpected error launching native app', error, stackTrace);
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
