@@ -75,6 +75,37 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
             ),
           ),
 
+          // Sort Order Dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            child: DropdownButtonFormField<TodoSortOrder>(
+              value: todoState.sortOrder,
+              decoration: const InputDecoration(
+                labelText: 'Sortierung',
+                prefixIcon: Icon(Icons.sort),
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+              ),
+              items: TodoSortOrder.values.map((sortOrder) {
+                return DropdownMenuItem(
+                  value: sortOrder,
+                  child: Text(sortOrder.displayName),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  ref.read(todoProvider.notifier).setSortOrder(value);
+                }
+              },
+            ),
+          ),
+
           // Filter Tabs
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -151,92 +182,78 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    itemCount: filteredTodos.length,
-                    itemBuilder: (context, index) {
-                      final todo = filteredTodos[index];
-                      final isEditing = _editingTodoId == todo.id;
+                : todoState.sortOrder == TodoSortOrder.manual
+                    ? ReorderableListView.builder(
+                        itemCount: filteredTodos.length,
+                        onReorder: (oldIndex, newIndex) {
+                          if (oldIndex < newIndex) {
+                            newIndex -= 1;
+                          }
+                          final reordered = List<Todo>.from(filteredTodos);
+                          final todo = reordered.removeAt(oldIndex);
+                          reordered.insert(newIndex, todo);
+                          ref.read(todoProvider.notifier).reorderTodos(reordered);
+                        },
+                        itemBuilder: (context, index) {
+                          final todo = filteredTodos[index];
+                          final isEditing = _editingTodoId == todo.id;
 
-                      return Dismissible(
-                        key: Key('todo_${todo.id}'),
-                        background: Container(
-                          color: Theme.of(context).colorScheme.error,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: AppSpacing.md),
-                          child: Icon(
-                            Icons.delete,
-                            color: Theme.of(context).colorScheme.onError,
-                          ),
-                        ),
-                        direction: DismissDirection.endToStart,
-                        onDismissed: (direction) {
-                          ref.read(todoProvider.notifier).deleteTodo(todo.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Aufgabe gelöscht'),
-                              duration: Duration(seconds: 2),
+                          return Dismissible(
+                            key: Key('todo_${todo.id}'),
+                            background: Container(
+                              color: Theme.of(context).colorScheme.error,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: AppSpacing.md),
+                              child: Icon(
+                                Icons.delete,
+                                color: Theme.of(context).colorScheme.onError,
+                              ),
                             ),
+                            direction: DismissDirection.endToStart,
+                            onDismissed: (direction) {
+                              ref.read(todoProvider.notifier).deleteTodo(todo.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Aufgabe gelöscht'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: _buildTodoCard(todo, isEditing),
                           );
                         },
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.xs,
-                          ),
-                          child: ListTile(
-                            leading: Checkbox(
-                              value: todo.completed,
-                              onChanged: (_) {
-                                ref.read(todoProvider.notifier).toggleTodo(todo.id);
-                              },
+                      )
+                    : ListView.builder(
+                        itemCount: filteredTodos.length,
+                        itemBuilder: (context, index) {
+                          final todo = filteredTodos[index];
+                          final isEditing = _editingTodoId == todo.id;
+
+                          return Dismissible(
+                            key: Key('todo_${todo.id}'),
+                            background: Container(
+                              color: Theme.of(context).colorScheme.error,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: AppSpacing.md),
+                              child: Icon(
+                                Icons.delete,
+                                color: Theme.of(context).colorScheme.onError,
+                              ),
                             ),
-                            title: isEditing
-                                ? TextField(
-                                    controller: _editController,
-                                    autofocus: true,
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      hintText: 'Aufgabe eingeben...',
-                                    ),
-                                    onSubmitted: (value) {
-                                      ref
-                                          .read(todoProvider.notifier)
-                                          .updateTodo(todo.id, value);
-                                      setState(() {
-                                        _editingTodoId = null;
-                                      });
-                                    },
-                                  )
-                                : Text(
-                                    todo.text,
-                                    style: todo.completed
-                                        ? TextStyle(
-                                            decoration: TextDecoration.lineThrough,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          )
-                                        : null,
-                                  ),
-                            subtitle: Text(
-                              DateFormat('dd.MM.yyyy').format(todo.createdAt),
-                              style: AppTextStyles.caption,
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.edit, size: 20),
-                              onPressed: () {
-                                setState(() {
-                                  _editingTodoId = todo.id;
-                                  _editController.text = todo.text;
-                                });
-                              },
-                              tooltip: 'Bearbeiten',
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                            direction: DismissDirection.endToStart,
+                            onDismissed: (direction) {
+                              ref.read(todoProvider.notifier).deleteTodo(todo.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Aufgabe gelöscht'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: _buildTodoCard(todo, isEditing),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
@@ -247,56 +264,225 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
     );
   }
 
+  Widget _buildTodoCard(Todo todo, bool isEditing) {
+    return Card(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: todo.priority.color.withOpacity(0.5),
+          width: 3,
+        ),
+      ),
+      child: ListTile(
+        leading: Checkbox(
+          value: todo.completed,
+          onChanged: (_) {
+            ref.read(todoProvider.notifier).toggleTodo(todo.id);
+          },
+        ),
+        title: isEditing
+            ? TextField(
+                controller: _editController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Aufgabe eingeben...',
+                ),
+                onSubmitted: (value) {
+                  ref.read(todoProvider.notifier).updateTodo(todo.id, value);
+                  setState(() {
+                    _editingTodoId = null;
+                  });
+                },
+              )
+            : Text(
+                todo.text,
+                style: todo.completed
+                    ? TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      )
+                    : null,
+              ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: todo.priority.color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: todo.priority.color,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    todo.priority.displayName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: todo.priority.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('dd.MM.yyyy').format(todo.createdAt),
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PopupMenuButton<TodoPriority>(
+              icon: Icon(
+                Icons.flag,
+                color: todo.priority.color,
+                size: 20,
+              ),
+              tooltip: 'Priorität ändern',
+              onSelected: (priority) {
+                ref.read(todoProvider.notifier).updateTodoPriority(
+                      todo.id,
+                      priority,
+                    );
+              },
+              itemBuilder: (context) => TodoPriority.values.map((priority) {
+                return PopupMenuItem(
+                  value: priority,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.flag,
+                        color: priority.color,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(priority.displayName),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit, size: 20),
+              onPressed: () {
+                setState(() {
+                  _editingTodoId = todo.id;
+                  _editController.text = todo.text;
+                });
+              },
+              tooltip: 'Bearbeiten',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddTodoDialog(BuildContext context) {
     final controller = TextEditingController();
+    TodoPriority selectedPriority = TodoPriority.normal;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Neue Aufgabe'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Aufgabe eingeben...',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              ref.read(todoProvider.notifier).addTodo(value);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Aufgabe hinzugefügt'),
-                  duration: Duration(seconds: 2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Neue Aufgabe'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: 'Aufgabe eingeben...',
+                  border: OutlineInputBorder(),
                 ),
-              );
-            }
-          },
+                maxLines: 3,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Priorität:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: 8,
+                children: TodoPriority.values.map((priority) {
+                  final isSelected = selectedPriority == priority;
+                  return ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.flag,
+                          size: 16,
+                          color: isSelected ? Colors.white : priority.color,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(priority.displayName),
+                      ],
+                    ),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        selectedPriority = priority;
+                      });
+                    },
+                    selectedColor: priority.color,
+                    backgroundColor: priority.color.withOpacity(0.2),
+                    side: BorderSide(color: priority.color),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  ref.read(todoProvider.notifier).addTodo(
+                        controller.text,
+                        priority: selectedPriority,
+                      );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Aufgabe hinzugefügt'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Hinzufügen'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                ref.read(todoProvider.notifier).addTodo(controller.text);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Aufgabe hinzugefügt'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-            child: const Text('Hinzufügen'),
-          ),
-        ],
       ),
     );
   }

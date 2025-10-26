@@ -17,6 +17,8 @@ import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_card.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/custom_app_dialog.dart';
+import 'package:bbzcloud_mobil/presentation/screens/todos_screen.dart';
+import 'package:bbzcloud_mobil/presentation/providers/todo_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -49,6 +51,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text(AppStrings.appTitle),
         actions: [
+          // Todo Button with Badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.check_circle_outline),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    RouteAnimations.slideFromBottom(const TodosScreen()),
+                  );
+                },
+                tooltip: 'Aufgaben',
+              ),
+              Consumer(
+                builder: (context, ref, child) {
+                  final activeTodoCount = ref.watch(activeTodoCountProvider);
+                  if (activeTodoCount == 0) return const SizedBox.shrink();
+                  
+                  return Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        activeTodoCount > 99 ? '99+' : '$activeTodoCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
           if (!_isEditMode)
             IconButton(
               icon: const Icon(Icons.add),

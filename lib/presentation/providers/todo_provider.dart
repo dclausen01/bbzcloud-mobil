@@ -43,9 +43,14 @@ class TodoNotifier extends StateNotifier<TodoState> {
     }
   }
 
-  /// Add a new todo
-  Future<void> addTodo(String text) async {
+  /// Add a new todo with priority (defaults to normal)
+  Future<void> addTodo(String text, {TodoPriority priority = TodoPriority.normal}) async {
     if (text.trim().isEmpty) return;
+
+    // Calculate sort order for manual sorting
+    final maxSortOrder = state.todos.isEmpty
+        ? 0
+        : state.todos.map((t) => t.sortOrder).reduce((a, b) => a > b ? a : b);
 
     final newTodo = Todo(
       id: DateTime.now().millisecondsSinceEpoch,
@@ -53,6 +58,8 @@ class TodoNotifier extends StateNotifier<TodoState> {
       completed: false,
       createdAt: DateTime.now(),
       folder: state.selectedFolder,
+      priority: priority,
+      sortOrder: maxSortOrder + 1,
     );
 
     state = state.copyWith(
@@ -60,7 +67,7 @@ class TodoNotifier extends StateNotifier<TodoState> {
     );
 
     await _saveTodos();
-    logger.info('Added todo: ${newTodo.text}');
+    logger.info('Added todo: ${newTodo.text} with priority ${priority.displayName}');
   }
 
   /// Toggle todo completion
@@ -92,6 +99,42 @@ class TodoNotifier extends StateNotifier<TodoState> {
 
     await _saveTodos();
     logger.info('Updated todo $id');
+  }
+
+  /// Update todo priority
+  Future<void> updateTodoPriority(int id, TodoPriority priority) async {
+    state = state.copyWith(
+      todos: state.todos.map((todo) {
+        if (todo.id == id) {
+          return todo.copyWith(priority: priority);
+        }
+        return todo;
+      }).toList(),
+    );
+
+    await _saveTodos();
+    logger.info('Updated todo $id priority to ${priority.displayName}');
+  }
+
+  /// Reorder todos (for manual sorting)
+  Future<void> reorderTodos(List<Todo> reorderedTodos) async {
+    // Update sort order based on new position
+    final updatedTodos = <Todo>[];
+    for (int i = 0; i < reorderedTodos.length; i++) {
+      updatedTodos.add(reorderedTodos[i].copyWith(sortOrder: i));
+    }
+
+    // Merge with todos from other folders
+    final otherFolderTodos = state.todos
+        .where((todo) => todo.folder != state.selectedFolder)
+        .toList();
+
+    state = state.copyWith(
+      todos: [...otherFolderTodos, ...updatedTodos],
+    );
+
+    await _saveTodos();
+    logger.info('Reordered todos');
   }
 
   /// Delete todo
@@ -155,6 +198,13 @@ class TodoNotifier extends StateNotifier<TodoState> {
       state = state.copyWith(selectedFolder: folderName);
     }
   }
+
+  /// Change sort order
+  Future<void> setSortOrder(TodoSortOrder sortOrder) async {
+    state = state.copyWith(sortOrder: sortOrder);
+    await _saveTodos();
+    logger.info('Changed sort order to ${sortOrder.displayName}');
+  }
 }
 
 /// Provider for todo state
@@ -162,11 +212,11 @@ final todoProvider = StateNotifierProvider<TodoNotifier, TodoState>((ref) {
   return TodoNotifier();
 });
 
-/// Provider for filtered todos
+/// Provider for filtered and sorted todos
 final filteredTodosProvider = Provider.family<List<Todo>, TodoFilter>((ref, filter) {
   final todoState = ref.watch(todoProvider);
   
-  return todoState.todos
+  final filtered = todoState.todos
       .where((todo) => todo.folder == todoState.selectedFolder)
       .where((todo) {
         switch (filter) {
@@ -178,8 +228,29 @@ final filteredTodosProvider = Provider.family<List<Todo>, TodoFilter>((ref, filt
             return true;
         }
       })
-      .toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      .toList();
+
+  // Sort based on selected sort order
+  switch (todoState.sortOrder) {
+    case TodoSortOrder.priority:
+      // Sort by priority (urgent first), then by creation date
+      filtered.sort((a, b) {
+        final priorityCompare = a.priority.level.compareTo(b.priority.level);
+        if (priorityCompare != 0) return priorityCompare;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+      break;
+    case TodoSortOrder.createdDate:
+      // Sort by creation date (newest first)
+      filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      break;
+    case TodoSortOrder.manual:
+      // Sort by manual sort order
+      filtered.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      break;
+  }
+
+  return filtered;
 });
 
 /// Provider for active todo count in current folder
