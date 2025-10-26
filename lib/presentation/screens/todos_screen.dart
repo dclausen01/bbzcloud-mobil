@@ -431,6 +431,15 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                 spacing: 8,
                 children: TodoPriority.values.map((priority) {
                   final isSelected = selectedPriority == priority;
+                  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                  
+                  // Adjust text color for better readability in dark mode
+                  final textColor = isSelected 
+                      ? Colors.white 
+                      : (isDarkMode && priority == TodoPriority.normal)
+                          ? Colors.black87  // Dark text for yellow in dark mode
+                          : null;  // Use default theme color
+                  
                   return ChoiceChip(
                     label: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -441,7 +450,10 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                           color: isSelected ? Colors.white : priority.color,
                         ),
                         const SizedBox(width: 4),
-                        Text(priority.displayName),
+                        Text(
+                          priority.displayName,
+                          style: TextStyle(color: textColor),
+                        ),
                       ],
                     ),
                     selected: isSelected,

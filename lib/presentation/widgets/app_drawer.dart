@@ -35,7 +35,7 @@ class AppDrawer extends ConsumerWidget {
 
           return Column(
             children: [
-              // Drawer Header
+              // Drawer Header with App Logo
               DrawerHeader(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -50,16 +50,30 @@ class AppDrawer extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Theme.of(context).colorScheme.primary,
+                    // App Logo
+                    Center(
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/icon.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const Spacer(),
                     Text(
                       user.email,
                       style: AppTextStyles.body1.copyWith(
