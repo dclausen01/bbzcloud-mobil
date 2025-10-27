@@ -43,6 +43,7 @@ class Todo {
   final String folder;
   final TodoPriority priority;
   final int sortOrder;
+  final DateTime? dueDate;
 
   const Todo({
     required this.id,
@@ -52,7 +53,37 @@ class Todo {
     required this.folder,
     this.priority = TodoPriority.normal,
     this.sortOrder = 0,
+    this.dueDate,
   });
+
+  /// Check if task is overdue
+  bool get isOverdue {
+    if (dueDate == null || completed) return false;
+    return dueDate!.isBefore(DateTime.now());
+  }
+
+  /// Check if task is due today
+  bool get isDueToday {
+    if (dueDate == null || completed) return false;
+    final now = DateTime.now();
+    return dueDate!.year == now.year && 
+           dueDate!.month == now.month && 
+           dueDate!.day == now.day;
+  }
+
+  /// Check if task is due soon (within 3 days)
+  bool get isDueSoon {
+    if (dueDate == null || completed) return false;
+    final now = DateTime.now();
+    final diff = dueDate!.difference(now).inDays;
+    return diff >= 0 && diff <= 3;
+  }
+
+  /// Get effective priority (auto-upgrade if overdue/due today)
+  TodoPriority get effectivePriority {
+    if (isOverdue || isDueToday) return TodoPriority.urgent;
+    return priority;
+  }
 
   /// Create Todo from database map
   factory Todo.fromMap(Map<String, dynamic> map) {
@@ -64,6 +95,7 @@ class Todo {
       folder: map['folder'] as String? ?? 'Standard',
       priority: TodoPriority.fromLevel(map['priority'] as int? ?? 3),
       sortOrder: map['sort_order'] as int? ?? 0,
+      dueDate: map['due_date'] != null ? DateTime.parse(map['due_date'] as String) : null,
     );
   }
 
@@ -77,6 +109,7 @@ class Todo {
       'folder': folder,
       'priority': priority.level,
       'sort_order': sortOrder,
+      'due_date': dueDate?.toIso8601String(),
     };
   }
 
@@ -89,6 +122,8 @@ class Todo {
     String? folder,
     TodoPriority? priority,
     int? sortOrder,
+    DateTime? dueDate,
+    bool clearDueDate = false,
   }) {
     return Todo(
       id: id ?? this.id,
@@ -98,6 +133,7 @@ class Todo {
       folder: folder ?? this.folder,
       priority: priority ?? this.priority,
       sortOrder: sortOrder ?? this.sortOrder,
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
     );
   }
 

@@ -74,19 +74,42 @@ class AppDrawer extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      user.email,
-                      style: AppTextStyles.body1.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      user.role.displayName,
-                      style: AppTextStyles.caption.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                    // User Info - centered and styled
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            user.email,
+                            style: AppTextStyles.body1.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              user.role.displayName,
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -119,7 +142,7 @@ class AppDrawer extends ConsumerWidget {
               // Bottom Section
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.checklist),
+                leading: const Icon(Icons.check_circle_outline),
                 title: const Text('Aufgaben'),
                 onTap: () {
                   Navigator.pop(context); // Close drawer

@@ -43,8 +43,12 @@ class TodoNotifier extends StateNotifier<TodoState> {
     }
   }
 
-  /// Add a new todo with priority (defaults to normal)
-  Future<void> addTodo(String text, {TodoPriority priority = TodoPriority.normal}) async {
+  /// Add a new todo with priority and optional due date
+  Future<void> addTodo(
+    String text, {
+    TodoPriority priority = TodoPriority.normal,
+    DateTime? dueDate,
+  }) async {
     if (text.trim().isEmpty) return;
 
     // Calculate sort order for manual sorting
@@ -60,6 +64,7 @@ class TodoNotifier extends StateNotifier<TodoState> {
       folder: state.selectedFolder,
       priority: priority,
       sortOrder: maxSortOrder + 1,
+      dueDate: dueDate,
     );
 
     state = state.copyWith(
@@ -67,7 +72,7 @@ class TodoNotifier extends StateNotifier<TodoState> {
     );
 
     await _saveTodos();
-    logger.info('Added todo: ${newTodo.text} with priority ${priority.displayName}');
+    logger.info('Added todo: ${newTodo.text} with priority ${priority.displayName}${dueDate != null ? " due ${dueDate.toString()}" : ""}');
   }
 
   /// Toggle todo completion
@@ -114,6 +119,24 @@ class TodoNotifier extends StateNotifier<TodoState> {
 
     await _saveTodos();
     logger.info('Updated todo $id priority to ${priority.displayName}');
+  }
+
+  /// Update todo due date
+  Future<void> updateTodoDueDate(int id, DateTime? dueDate) async {
+    state = state.copyWith(
+      todos: state.todos.map((todo) {
+        if (todo.id == id) {
+          return todo.copyWith(
+            dueDate: dueDate,
+            clearDueDate: dueDate == null,
+          );
+        }
+        return todo;
+      }).toList(),
+    );
+
+    await _saveTodos();
+    logger.info('Updated todo $id due date to ${dueDate?.toString() ?? "none"}');
   }
 
   /// Reorder todos (for manual sorting)
@@ -233,10 +256,16 @@ final filteredTodosProvider = Provider.family<List<Todo>, TodoFilter>((ref, filt
   // Sort based on selected sort order
   switch (todoState.sortOrder) {
     case TodoSortOrder.priority:
-      // Sort by priority (urgent first), then by creation date
+      // Sort by effective priority (considers due dates), then by creation date
       filtered.sort((a, b) {
-        final priorityCompare = a.priority.level.compareTo(b.priority.level);
+        final priorityCompare = a.effectivePriority.level.compareTo(b.effectivePriority.level);
         if (priorityCompare != 0) return priorityCompare;
+        // If same priority, sort by due date (soonest first)
+        if (a.dueDate != null && b.dueDate != null) {
+          return a.dueDate!.compareTo(b.dueDate!);
+        }
+        if (a.dueDate != null) return -1;
+        if (b.dueDate != null) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
       break;
@@ -261,4 +290,22 @@ final activeTodoCountProvider = Provider<int>((ref) {
       .where((todo) =>
           todo.folder == todoState.selectedFolder && !todo.completed)
       .length;
+});
+
+/// Provider for todos due today
+final todosDueTodayProvider = Provider<List<Todo>>((ref) {
+  final todoState = ref.watch(todoProvider);
+  
+  return todoState.todos
+      .where((todo) => !todo.completed && todo.isDueToday)
+      .toList();
+});
+
+/// Provider for overdue todos
+final overdueTodosProvider = Provider<List<Todo>>((ref) {
+  final todoState = ref.watch(todoProvider);
+  
+  return todoState.todos
+      .where((todo) => !todo.completed && todo.isOverdue)
+      .toList();
 });

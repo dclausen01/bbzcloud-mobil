@@ -188,7 +188,7 @@ class NavigationApps {
       url: AppUrls.antraege,
       icon: Icons.description,
       color: Color(0xFF5A5A5A),
-      description: 'Dokumentenmanagementsystem',
+      description: 'Formulare & Dokumente',
       teacherOnly: true,
       orderIndex: 10,
     ),
