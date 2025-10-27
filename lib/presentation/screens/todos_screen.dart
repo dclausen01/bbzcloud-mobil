@@ -265,6 +265,14 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
   }
 
   Widget _buildTodoCard(Todo todo, bool isEditing) {
+    // Determine border color based on due date status
+    Color borderColor = todo.effectivePriority.color.withOpacity(0.5);
+    if (todo.isOverdue) {
+      borderColor = Colors.red;
+    } else if (todo.isDueToday) {
+      borderColor = Colors.orange;
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -274,7 +282,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: todo.priority.color.withOpacity(0.5),
+          color: borderColor,
           width: 3,
         ),
       ),
@@ -313,8 +321,11 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
               children: [
+                // Priority Badge
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -337,11 +348,65 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                // Created Date
                 Text(
                   DateFormat('dd.MM.yyyy').format(todo.createdAt),
                   style: AppTextStyles.caption,
                 ),
+                // Due Date Badge
+                if (todo.dueDate != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: todo.isOverdue
+                          ? Colors.red.withOpacity(0.2)
+                          : todo.isDueToday
+                              ? Colors.orange.withOpacity(0.2)
+                              : Colors.blue.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: todo.isOverdue
+                            ? Colors.red
+                            : todo.isDueToday
+                                ? Colors.orange
+                                : Colors.blue,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          todo.isOverdue
+                              ? Icons.warning
+                              : Icons.calendar_today,
+                          size: 12,
+                          color: todo.isOverdue
+                              ? Colors.red
+                              : todo.isDueToday
+                                  ? Colors.orange
+                                  : Colors.blue,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('dd.MM.yyyy').format(todo.dueDate!),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: todo.isOverdue
+                                ? Colors.red
+                                : todo.isDueToday
+                                    ? Colors.orange
+                                    : Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -349,6 +414,21 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Due Date Button
+            IconButton(
+              icon: Icon(
+                todo.dueDate != null
+                    ? Icons.event_available
+                    : Icons.event,
+                size: 20,
+                color: todo.dueDate != null
+                    ? (todo.isOverdue ? Colors.red : Colors.blue)
+                    : Colors.grey,
+              ),
+              onPressed: () => _showDueDatePicker(todo),
+              tooltip: 'Fälligkeitsdatum',
+            ),
+            // Priority Menu
             PopupMenuButton<TodoPriority>(
               icon: Icon(
                 Icons.flag,
@@ -379,6 +459,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                 );
               }).toList(),
             ),
+            // Edit Button
             IconButton(
               icon: const Icon(Icons.edit, size: 20),
               onPressed: () {
@@ -398,6 +479,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
   void _showAddTodoDialog(BuildContext context) {
     final controller = TextEditingController();
     TodoPriority selectedPriority = TodoPriority.normal;
+    DateTime? selectedDueDate;
 
     showDialog(
       context: context,
@@ -468,6 +550,54 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                   );
                 }).toList(),
               ),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Fälligkeitsdatum:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDueDate ?? DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            selectedDueDate = date;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today, size: 18),
+                      label: Text(
+                        selectedDueDate != null
+                            ? DateFormat('dd.MM.yyyy').format(selectedDueDate!)
+                            : 'Datum wählen',
+                      ),
+                    ),
+                  ),
+                  if (selectedDueDate != null) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          selectedDueDate = null;
+                        });
+                      },
+                      tooltip: 'Datum entfernen',
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
           actions: [
@@ -481,6 +611,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                   ref.read(todoProvider.notifier).addTodo(
                         controller.text,
                         priority: selectedPriority,
+                        dueDate: selectedDueDate,
                       );
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -497,6 +628,34 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
         ),
       ),
     );
+  }
+
+  /// Show date picker to set or update due date for a todo
+  Future<void> _showDueDatePicker(Todo todo) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: todo.dueDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+    );
+    
+    if (date != null) {
+      await ref.read(todoProvider.notifier).updateTodoDueDate(todo.id, date);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fälligkeitsdatum auf ${DateFormat('dd.MM.yyyy').format(date)} gesetzt'),
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: 'Entfernen',
+              onPressed: () {
+                ref.read(todoProvider.notifier).updateTodoDueDate(todo.id, null);
+              },
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showFolderDialog(BuildContext context) {

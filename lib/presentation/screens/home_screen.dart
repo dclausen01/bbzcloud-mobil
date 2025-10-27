@@ -29,6 +29,130 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isEditMode = false;
+  bool _hasCheckedDueTodos = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for due todos after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkDueTodos();
+    });
+  }
+
+  Future<void> _checkDueTodos() async {
+    if (_hasCheckedDueTodos) return;
+    _hasCheckedDueTodos = true;
+
+    // Wait a bit for providers to initialize
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    if (!mounted) return;
+
+    final dueTodayTodos = ref.read(todosDueTodayProvider);
+    final overdueTodos = ref.read(overdueTodosProvider);
+    
+    if (dueTodayTodos.isNotEmpty || overdueTodos.isNotEmpty) {
+      _showDueTodosDialog(dueTodayTodos, overdueTodos);
+    }
+  }
+
+  void _showDueTodosDialog(List<Todo> dueTodayTodos, List<Todo> overdueTodos) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            const Text('Fällige Aufgaben'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (overdueTodos.isNotEmpty) ...[
+                Text(
+                  'Überfällig (${overdueTodos.length}):',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...overdueTodos.map((todo) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error, color: Colors.red, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          todo.text,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+                const SizedBox(height: 16),
+              ],
+              if (dueTodayTodos.isNotEmpty) ...[
+                Text(
+                  'Heute fällig (${dueTodayTodos.length}):',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...dueTodayTodos.map((todo) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.today, color: Colors.orange, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          todo.text,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Später'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                RouteAnimations.slideFromBottom(const TodosScreen()),
+              );
+            },
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Zu Aufgaben'),
+          ),
+        ],
+      ),
+    );
+  }
 
   String _getAppId(dynamic app) {
     if (app is AppItem) {
