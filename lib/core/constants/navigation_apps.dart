@@ -70,7 +70,7 @@ class AppUrls {
   static const String outlook = 'https://exchange.bbz-rd-eck.de/owa/#path=/mail';
 
   // Productivity applications
-  static const String cryptpad = 'https://cryptpad.fr/drive';
+  static const String cryptpad = 'https://cryptpad.fr/login';
   static const String taskcards = 'https://bbzrdeck.taskcards.app';
 
   // Administrative tools
