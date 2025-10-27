@@ -40,7 +40,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
         title: const Text('Aufgaben'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.folder),
+            icon: const Icon(Icons.create_new_folder),
             onPressed: () => _showFolderDialog(context),
             tooltip: 'Ordner verwalten',
           ),
@@ -486,10 +486,11 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Neue Aufgabe'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               TextField(
                 controller: controller,
                 decoration: const InputDecoration(
@@ -599,6 +600,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                 ],
               ),
             ],
+            ),
           ),
           actions: [
             TextButton(
