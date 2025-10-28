@@ -42,6 +42,7 @@ jobs:
             echo "Keystore decoded successfully"
           else
             echo "Warning: KEYSTORE_BASE64 secret not found, will use debug signing"
+            
           fi
         continue-on-error: true
       
@@ -57,9 +58,11 @@ jobs:
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEY_PASSWORD
           keyAlias=$KEY_ALIAS
-          storeFile=bbzcloud-upload-keystore.jks
+          storeFile=../bbzcloud-upload-keystore.jks
           EOF
             echo "key.properties created successfully"
+            echo "Keystore location: android/bbzcloud-upload-keystore.jks"
+            ls -la android/bbzcloud-upload-keystore.jks
           else
             echo "Warning: Keystore or secrets not available, will use debug signing"
           fi
