@@ -171,6 +171,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Download AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/
+      
       - name: Setup Java
         uses: actions/setup-java@v4
         with:

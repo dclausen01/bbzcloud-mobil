@@ -3,17 +3,11 @@ default_platform(:android)
 platform :android do
   desc "Deploy a new version to the Google Play Store Open Testing Track"
   lane :deploy_open_testing do
-    # Build the release AAB
-    gradle(
-      task: "bundle",
-      build_type: "Release",
-      project_dir: "android/"
-    )
-
     # Upload to Play Store Open Testing track
+    # AAB is already built by GitHub Actions build job
     upload_to_play_store(
       track: 'open',
-      aab: 'build/app/outputs/bundle/release/app-release.aab',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
       skip_upload_apk: true,
       skip_upload_metadata: false,
       skip_upload_images: false,
@@ -24,17 +18,11 @@ platform :android do
 
   desc "Deploy a new version to the Google Play Store Internal Testing Track"
   lane :deploy_internal do
-    # Build the release AAB
-    gradle(
-      task: "bundle",
-      build_type: "Release",
-      project_dir: "android/"
-    )
-
     # Upload to Play Store Internal Testing track
+    # AAB is already built by GitHub Actions build job
     upload_to_play_store(
       track: 'internal',
-      aab: 'build/app/outputs/bundle/release/app-release.aab',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
       skip_upload_apk: true,
       skip_upload_metadata: false,
       skip_upload_images: false,
@@ -61,7 +49,7 @@ platform :android do
     gradle(
       task: "bundle",
       build_type: "Release",
-      project_dir: "android/"
+      project_dir: ".."
     )
   end
 end
