@@ -208,13 +208,65 @@ Beantworte den Fragebogen:
 
 ### 2.5 Service Account in Play Console verbinden
 
-1. Zurück zu [Google Play Console](https://play.google.com/console)
-2. Navigation: **Setup → API-Zugriff**
-3. Scrolle zu "Dienstkonten"
-4. Klicke auf "Dienstkonten erstellen und verwalten"
-5. Du wirst zur Cloud Console weitergeleitet
-6. Zurück zur Play Console
-7. Klicke auf "Zugriff erteilen" beim neu erstellten Service Account
+**Aktuelle UI (2024/2025):**
+
+1. **Zurück zu [Google Play Console](https://play.google.com/console)**
+   - Wähle deine App aus (oder warte bis App erstellt ist)
+
+2. **Navigation zu API-Zugriff:**
+   - In der linken Seitenleiste, scrolle ganz nach unten
+   - Klicke auf **"Einstellungen"** (Settings)
+   - Dann auf **"API-Zugriff"** (API access)
+   
+   **Alternative:**
+   - Direktlink: `https://play.google.com/console/developers/YOUR_DEVELOPER_ID/api-access`
+
+3. **Service Account erstellen/verknüpfen:**
+   
+   **Wenn Service Account noch nicht verknüpft:**
+   - Du siehst eine Meldung "Verknüpfen Sie Ihr Projekt mit der Google Cloud Platform"
+   - Klicke auf **"Google Cloud-Projekt auswählen"** oder **"Link"**
+   - Wähle das vorher erstellte Cloud-Projekt aus
+   - Klicke **"Verknüpfen"**
+
+4. **Service Account-Berechtigungen erteilen:**
+   - Nach der Verknüpfung siehst du eine Liste mit Service Accounts
+   - Suche deinen Service Account (endet mit `@YOUR_PROJECT.iam.gserviceaccount.com`)
+   - Falls nicht sichtbar, klicke auf **"Service-Konten verwalten"**
+   - Zurück in der Play Console, klicke auf **"Zugriff erteilen"** neben dem Service Account
+   
+5. **Berechtigungen konfigurieren:**
+   - **App-Zugriff:** Wähle deine App(s)
+   - **Berechtigungen:**
+     - ✅ **Releases verwalten** (für automatischen Upload)
+     - ✅ **Release-Status ändern** (für Track-Management)
+     - Optional: Store Listing, Preise, etc.
+   - Klicke **"Einladen"** oder **"Zugriff erteilen"**
+
+6. **Bestätigung:**
+   - Der Service Account sollte jetzt in der Liste mit den erteilten Berechtigungen erscheinen
+   - Status: "Aktiv" oder "Active"
+
+**Troubleshooting:**
+
+**Problem: "API-Zugriff" nicht gefunden**
+- Stelle sicher, dass du **Inhaber** des Developer-Accounts bist
+- Du musst möglicherweise erst eine App erstellen, bevor API-Zugriff verfügbar ist
+
+**Problem: Service Account nicht sichtbar**
+- Warte 10-15 Minuten nach Erstellung in Cloud Console
+- Aktualisiere die Play Console Seite (F5)
+- Prüfe ob Cloud-Projekt korrekt verknüpft ist
+
+**Problem: "Zugriff erteilen" fehlt**
+- Klicke auf **"Dienstkonten verwalten"** (öffnet Cloud Console)
+- Stelle sicher, dass der Service Account die Rolle "Service Account User" hat
+- Kehre zur Play Console zurück und aktualisiere die Seite
+
+**Alternative UI-Pfade (je nach Play Console Version):**
+1. Hamburger-Menü (☰) → Settings → Developer account → API access
+2. Einstellungen (⚙️) → API access
+3. Alle Apps → [App auswählen] → Setup → API access
 
 ### 2.6 Berechtigungen zuweisen
 
