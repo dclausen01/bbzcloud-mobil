@@ -252,3 +252,4 @@ Nach der einmaligen Einrichtung erfolgen Updates automatisch:
 ---
 
 Made with ❤️ by BBZ Rendsburg-Eckernförde
+
