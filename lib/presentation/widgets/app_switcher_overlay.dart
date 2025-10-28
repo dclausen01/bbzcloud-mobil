@@ -6,11 +6,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
+import 'package:bbzcloud_mobil/data/models/todo.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
+import 'package:bbzcloud_mobil/presentation/providers/todo_provider.dart';
 
 class AppSwitcherOverlay extends ConsumerWidget {
   final Function(String id, String title, String url, bool requiresAuth) onAppSelected;
@@ -177,6 +180,22 @@ class AppSwitcherOverlay extends ConsumerWidget {
               ),
             ],
 
+            // Quick Add Todo Button
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: FilledButton.icon(
+                onPressed: () => _showQuickAddTodoDialog(context, ref),
+                icon: const Icon(Icons.add),
+                label: const Text('Schnell-Aufgabe hinzufügen'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+              ),
+            ),
+
             // All Apps Grid
             Expanded(
               child: Padding(
@@ -283,6 +302,162 @@ class AppSwitcherOverlay extends ConsumerWidget {
                   },
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show quick add todo dialog
+  void _showQuickAddTodoDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    TodoPriority selectedPriority = TodoPriority.normal;
+    DateTime? selectedDueDate;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Neue Aufgabe'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    hintText: 'Aufgabe eingeben...',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                  'Priorität:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: 8,
+                  children: TodoPriority.values.map((priority) {
+                    final isSelected = selectedPriority == priority;
+                    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                    
+                    final textColor = isSelected 
+                        ? Colors.white 
+                        : (isDarkMode && priority == TodoPriority.normal)
+                            ? Colors.black87
+                            : null;
+                    
+                    return ChoiceChip(
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.flag,
+                            size: 16,
+                            color: isSelected ? Colors.white : priority.color,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            priority.displayName,
+                            style: TextStyle(color: textColor),
+                          ),
+                        ],
+                      ),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          selectedPriority = priority;
+                        });
+                      },
+                      selectedColor: priority.color,
+                      backgroundColor: priority.color.withOpacity(0.2),
+                      side: BorderSide(color: priority.color),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                  'Fälligkeitsdatum:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDueDate ?? DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+                          );
+                          if (date != null) {
+                            setState(() {
+                              selectedDueDate = date;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_today, size: 18),
+                        label: Text(
+                          selectedDueDate != null
+                              ? DateFormat('dd.MM.yyyy').format(selectedDueDate!)
+                              : 'Datum wählen',
+                        ),
+                      ),
+                    ),
+                    if (selectedDueDate != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          setState(() {
+                            selectedDueDate = null;
+                          });
+                        },
+                        tooltip: 'Datum entfernen',
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  ref.read(todoProvider.notifier).addTodo(
+                        controller.text,
+                        priority: selectedPriority,
+                        dueDate: selectedDueDate,
+                      );
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Aufgabe hinzugefügt'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Hinzufügen'),
             ),
           ],
         ),
