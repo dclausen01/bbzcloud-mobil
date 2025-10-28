@@ -208,65 +208,135 @@ Beantworte den Fragebogen:
 
 ### 2.5 Service Account in Play Console verbinden
 
-**Aktuelle UI (2024/2025):**
+**⚠️ WICHTIG: Die aktuelle Methode (2024/2025):**
 
-1. **Zurück zu [Google Play Console](https://play.google.com/console)**
-   - Wähle deine App aus (oder warte bis App erstellt ist)
+Google hat den Prozess vereinfacht. Es gibt **KEINEN** separaten "API-Zugriff" Menüpunkt mehr!
 
-2. **Navigation zu API-Zugriff:**
-   - In der linken Seitenleiste, scrolle ganz nach unten
-   - Klicke auf **"Einstellungen"** (Settings)
-   - Dann auf **"API-Zugriff"** (API access)
+#### Schritt-für-Schritt-Anleitung:
+
+**1. Service Account als Benutzer hinzufügen:**
+
+1. **Öffne Play Console:** [https://play.google.com/console](https://play.google.com/console)
+
+2. **Navigation zu Benutzern:**
+   - Klicke links unten auf **"Alle Apps"** (um sicherzustellen, dass du im Account-Bereich bist)
+   - Dann rechts oben auf das **⚙️ Zahnrad-Symbol** oder **"Settings"**
+   - Wähle **"Nutzer und Berechtigungen"** (Users and permissions)
    
-   **Alternative:**
-   - Direktlink: `https://play.google.com/console/developers/YOUR_DEVELOPER_ID/api-access`
+   **Direkter Weg:**
+   - https://play.google.com/console/users-and-permissions
 
-3. **Service Account erstellen/verknüpfen:**
+3. **Service Account hinzufügen:**
+   - Klicke auf **"Neuen Nutzer einladen"** oder **"Invite new users"**
+   - **E-Mail-Adresse:** Gib die Service Account E-Mail ein:
+     ```
+     play-store-deploy@YOUR_PROJECT_ID.iam.gserviceaccount.com
+     ```
+     (Die E-Mail findest du in der Google Cloud Console unter "IAM & Admin" → "Service Accounts")
+
+4. **App-Berechtigungen erteilen:**
+   - Tab **"App-Berechtigungen"** oder **"App permissions"**
+   - Klicke **"App hinzufügen"** oder **"Add app"**
+   - Wähle deine App **"BBZCloud Mobile"**
    
-   **Wenn Service Account noch nicht verknüpft:**
-   - Du siehst eine Meldung "Verknüpfen Sie Ihr Projekt mit der Google Cloud Platform"
-   - Klicke auf **"Google Cloud-Projekt auswählen"** oder **"Link"**
-   - Wähle das vorher erstellte Cloud-Projekt aus
-   - Klicke **"Verknüpfen"**
-
-4. **Service Account-Berechtigungen erteilen:**
-   - Nach der Verknüpfung siehst du eine Liste mit Service Accounts
-   - Suche deinen Service Account (endet mit `@YOUR_PROJECT.iam.gserviceaccount.com`)
-   - Falls nicht sichtbar, klicke auf **"Service-Konten verwalten"**
-   - Zurück in der Play Console, klicke auf **"Zugriff erteilen"** neben dem Service Account
+5. **Berechtigungen auswählen:**
    
-5. **Berechtigungen konfigurieren:**
-   - **App-Zugriff:** Wähle deine App(s)
-   - **Berechtigungen:**
-     - ✅ **Releases verwalten** (für automatischen Upload)
-     - ✅ **Release-Status ändern** (für Track-Management)
-     - Optional: Store Listing, Preise, etc.
-   - Klicke **"Einladen"** oder **"Zugriff erteilen"**
+   **Minimal erforderlich:**
+   - ✅ **Releases anzeigen** (View app information and download bulk reports)
+   - ✅ **Releases verwalten** (Release to production, exclude devices, and use Play App Signing)
+   - ✅ **Releases in Produktionstrack freigeben** (Release apps to testing tracks)
+   
+   **Empfohlen (für volle Automatisierung):**
+   - ✅ **Admin** (alle Berechtigungen) - am einfachsten für CI/CD
+   
+   **ODER einzeln:**
+   - ✅ Create and edit draft releases
+   - ✅ Promote releases
+   - ✅ Manage testing tracks
+   - ✅ View app information
+   
+6. **Kontoberechtigungen (optional):**
+   - Tab **"Kontoberechtigungen"** oder **"Account permissions"**
+   - Normalerweise: **Keine Auswahl** nötig (nur für Account-Level-Zugriff)
+   
+7. **Einladung senden:**
+   - Klicke **"Einladen"** oder **"Invite user"**
+   - Der Service Account wird sofort aktiv (keine Bestätigungs-E-Mail nötig!)
 
-6. **Bestätigung:**
-   - Der Service Account sollte jetzt in der Liste mit den erteilten Berechtigungen erscheinen
-   - Status: "Aktiv" oder "Active"
+**2. Berechtigungen verifizieren:**
 
-**Troubleshooting:**
+Zurück in **"Nutzer und Berechtigungen"**:
+- Du solltest den Service Account in der Liste sehen
+- Status: **Aktiv** / **Active**
+- Bei Klick auf den Namen siehst du die erteilten Berechtigungen
 
-**Problem: "API-Zugriff" nicht gefunden**
-- Stelle sicher, dass du **Inhaber** des Developer-Accounts bist
-- Du musst möglicherweise erst eine App erstellen, bevor API-Zugriff verfügbar ist
+---
 
-**Problem: Service Account nicht sichtbar**
-- Warte 10-15 Minuten nach Erstellung in Cloud Console
-- Aktualisiere die Play Console Seite (F5)
-- Prüfe ob Cloud-Projekt korrekt verknüpft ist
+#### Alternative Methode (wenn "Nutzer und Berechtigungen" nicht funktioniert):
 
-**Problem: "Zugriff erteilen" fehlt**
-- Klicke auf **"Dienstkonten verwalten"** (öffnet Cloud Console)
-- Stelle sicher, dass der Service Account die Rolle "Service Account User" hat
-- Kehre zur Play Console zurück und aktualisiere die Seite
+**Für neue Developer Accounts (2024+):**
 
-**Alternative UI-Pfade (je nach Play Console Version):**
-1. Hamburger-Menü (☰) → Settings → Developer account → API access
-2. Einstellungen (⚙️) → API access
-3. Alle Apps → [App auswählen] → Setup → API access
+1. **Google Cloud Console:**
+   - Öffne: [https://console.cloud.google.com/iam-admin/iam](https://console.cloud.google.com/iam-admin/iam)
+   - Wähle dein Projekt
+   
+2. **Service Account Rolle hinzufügen:**
+   - Finde deinen Service Account
+   - Klicke auf **"Edit principal"** (Stift-Symbol)
+   - **Rolle hinzufügen:**
+     - `Service Account User`
+     - `Service Usage Consumer`
+   - **Speichern**
+
+3. **Play Console Auto-Sync:**
+   - Warte 10-15 Minuten
+   - Service Account sollte automatisch in Play Console erscheinen
+   - Falls nicht: Gehe zu Schritt 1 (Benutzer manuell hinzufügen)
+
+---
+
+#### Troubleshooting:
+
+**Problem 1: "API-Zugriff" Menüpunkt existiert nicht**
+- ✅ **Das ist KORREKT!** Google hat diesen Menüpunkt entfernt
+- ✅ Verwende stattdessen **"Nutzer und Berechtigungen"**
+
+**Problem 2: Service Account kann nicht hinzugefügt werden**
+- **Fehler: "Invalid email"**
+  - Prüfe, ob die Service Account E-Mail korrekt ist
+  - Format: `NAME@PROJECT_ID.iam.gserviceaccount.com`
+  - Kopiere die E-Mail direkt aus Cloud Console → Service Accounts
+
+- **Fehler: "User already exists"**
+  - Service Account ist bereits hinzugefügt
+  - Suche in der Benutzerliste
+  - Eventuell unter einem anderen Namen/E-Mail
+
+**Problem 3: Berechtigungen werden nicht angewendet**
+- Warte 10-15 Minuten (Propagation-Zeit)
+- Lösche und erstelle den Benutzer neu
+- Prüfe, ob der Service Account in Cloud Console noch existiert
+
+**Problem 4: "You don't have permission to add users"**
+- Du brauchst **"Administrator"** oder **"Inhaber"** Rolle im Developer Account
+- Kontaktiere den Account-Inhaber
+
+---
+
+#### Was du NICHT mehr brauchst:
+
+❌ ~~"API-Zugriff" Menüpunkt~~ (existiert nicht mehr)  
+❌ ~~Cloud-Projekt manuell verknüpfen~~ (erfolgt automatisch)  
+❌ ~~Service Account in Play Console "genehmigen"~~ (entfällt)  
+❌ ~~Separate API-Konfiguration~~ (alles über Benutzer)
+
+#### Was du BRAUCHST:
+
+✅ Service Account in Google Cloud Console erstellt  
+✅ JSON-Key heruntergeladen  
+✅ Service Account als Benutzer in Play Console hinzugefügt  
+✅ App-Berechtigungen erteilt (mindestens "Releases verwalten")  
+✅ 10-15 Minuten Wartezeit nach dem Hinzufügen
 
 ### 2.6 Berechtigungen zuweisen
 
