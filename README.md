@@ -217,10 +217,35 @@ Bei Fragen oder Problemen:
 - [ ] App-Reihenfolge anpassen
 - [ ] Mehrsprachigkeit (DE/EN)
 
+## 🏪 Play Store Veröffentlichung
+
+Die App kann im Google Play Store veröffentlicht werden. Eine ausführliche Dokumentation findest du im [docs/](docs/) Verzeichnis.
+
+### Schnellstart
+
+📖 **[Vollständige Dokumentation](docs/README.md)** - Kompletter Leitfaden zur Veröffentlichung
+
+### Wichtige Dokumente
+
+- **[Release-Prozess](docs/RELEASE_PROCESS.md)** - Hauptdokumentation für die Veröffentlichung
+- **[Keystore Setup](docs/KEYSTORE_SETUP.md)** - App-Signierung einrichten
+- **[Play Store Setup](docs/PLAY_STORE_SETUP.md)** - Google Play Console konfigurieren
+- **[GitHub Secrets](docs/GITHUB_SECRETS.md)** - CI/CD für automatische Deployments
+- **[Store Assets](docs/STORE_ASSETS.md)** - Screenshots und Grafiken erstellen
+
+### Automatische Deployments
+
+Nach der einmaligen Einrichtung erfolgen Updates automatisch:
+
+1. Version in `pubspec.yaml` erhöhen
+2. `CHANGELOG.md` aktualisieren
+3. Auf `main` Branch pushen
+4. GitHub Actions deployt automatisch in den Play Store (Open Testing)
+
 ## 📊 Status
 
 ![Build Status](https://github.com/dclausen01/bbzcloud-mobil/workflows/Build/badge.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Flutter](https://img.shields.io/badge/flutter-3.35.6-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-android%20%7C%20ios-green.svg)
 

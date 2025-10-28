@@ -1,0 +1,2 @@
+json_key_file("play-store-service-account.json") # Path to the json secret file
+package_name("com.bbzcloud.bbzcloud_mobil") # e.g. com.krausefx.app

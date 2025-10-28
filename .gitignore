@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android Signing & Keystore
+android/key.properties
+android/*.jks
+android/*.keystore
+*.jks
+*.keystore
+
+# Fastlane
+android/fastlane/report.xml
+android/fastlane/screenshots
+android/fastlane/test_output
+android/fastlane/README.md
+
+# Play Store Service Account
+play-store-service-account.json
+google-play-api-key.json

@@ -1,0 +1,13 @@
+# Signing-Konfiguration für Release-Builds
+# 
+# WICHTIG: 
+# 1. Kopiere diese Datei nach 'key.properties' (ohne .template)
+# 2. Ersetze die Platzhalter mit deinen echten Werten
+# 3. Die key.properties Datei wird NICHT ins Git-Repository committet
+#
+# Siehe docs/KEYSTORE_SETUP.md für Details zur Keystore-Erstellung
+
+storePassword=DEIN_KEYSTORE_PASSWORT
+keyPassword=DEIN_KEY_PASSWORT
+keyAlias=upload
+storeFile=bbzcloud-upload-keystore.jks
