@@ -220,22 +220,19 @@ class _EmbeddedWebViewWidgetState
                 },
               ),
 
-              // Draggable Overlay Button
-              DraggableOverlayButton(
-                onTap: () {
-                  setState(() {
-                    _showAppSwitcher = true;
-                  });
-                },
-                onLongPress: () {
-                  ref.read(webViewStackProvider.notifier).clearCurrent();
-                  if (widget.onHomePressed != null) {
-                    widget.onHomePressed!();
-                  } else {
+              // Draggable Overlay Button - only on phones (not embedded)
+              if (widget.onHomePressed == null)
+                DraggableOverlayButton(
+                  onTap: () {
+                    setState(() {
+                      _showAppSwitcher = true;
+                    });
+                  },
+                  onLongPress: () {
+                    ref.read(webViewStackProvider.notifier).clearCurrent();
                     Navigator.of(context).pop();
-                  }
-                },
-              ),
+                  },
+                ),
 
               // App Switcher Overlay
               if (_showAppSwitcher)
