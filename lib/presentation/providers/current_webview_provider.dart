@@ -98,8 +98,8 @@ class CurrentWebViewNotifier extends StateNotifier<CurrentWebViewState> {
   }
 }
 
-/// Provider for the current WebView state
-final currentWebViewProvider =
+/// Provider for the current WebView state on tablets
+final tabletWebViewProvider =
     StateNotifierProvider<CurrentWebViewNotifier, CurrentWebViewState>(
   (ref) => CurrentWebViewNotifier(),
 );

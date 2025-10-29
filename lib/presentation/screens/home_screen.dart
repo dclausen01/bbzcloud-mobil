@@ -655,7 +655,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     // Check if this app is currently active
-    final currentWebView = ref.watch(currentWebViewProvider);
+    final currentWebView = ref.watch(tabletWebViewProvider);
     final isActive = currentWebView.appId == appId;
 
     return ListTile(
@@ -685,7 +685,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onTap: () {
         // On tablets: Update provider to show embedded WebView
         // This avoids navigation and keeps sidebar visible
-        ref.read(currentWebViewProvider.notifier).showWebView(
+        ref.read(tabletWebViewProvider.notifier).showWebView(
           appId: appId,
           title: title,
           url: url,
@@ -697,7 +697,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// Build tablet home content (shows either home screen or embedded webview)
   Widget _buildTabletHomeContent() {
-    final currentWebView = ref.watch(currentWebViewProvider);
+    final currentWebView = ref.watch(tabletWebViewProvider);
     
     // Show WebView if one is active
     if (currentWebView.hasWebView) {
@@ -711,7 +711,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         showBottomBar: true,
         onHomePressed: () {
           // Clear WebView and return to home
-          ref.read(currentWebViewProvider.notifier).clearWebView();
+          ref.read(tabletWebViewProvider.notifier).clearWebView();
         },
       );
     }

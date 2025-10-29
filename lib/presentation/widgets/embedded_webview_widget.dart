@@ -425,7 +425,7 @@ class _EmbeddedWebViewWidgetState
     // Check if we have onHomePressed callback (indicates embedded mode on tablet)
     if (widget.onHomePressed != null) {
       // Tablet embedded mode: Update provider instead of navigating
-      ref.read(currentWebViewProvider.notifier).showWebView(
+      ref.read(tabletWebViewProvider.notifier).showWebView(
         appId: id,
         title: title,
         url: url,
