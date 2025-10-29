@@ -23,6 +23,8 @@ import 'package:bbzcloud_mobil/presentation/widgets/custom_app_dialog.dart';
 import 'package:bbzcloud_mobil/presentation/screens/todos_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
 import 'package:bbzcloud_mobil/presentation/providers/todo_provider.dart';
+import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/embedded_webview_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -627,13 +629,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  /// Build a single app list tile
+  /// Build a single app list tile (for tablet drawer)
   Widget _buildAppListTile(dynamic app) {
     final String title;
     final String url;
     final Color color;
     final IconData icon;
     final bool requiresAuth;
+    final String appId = _getAppId(app);
 
     if (app is AppItem) {
       title = app.title;
@@ -651,35 +654,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return const SizedBox.shrink();
     }
 
+    // Check if this app is currently active
+    final currentWebView = ref.watch(currentWebViewProvider);
+    final isActive = currentWebView.appId == appId;
+
     return ListTile(
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
+          color: color.withOpacity(isActive ? 0.3 : 0.2),
           borderRadius: BorderRadius.circular(8),
+          border: isActive
+              ? Border.all(color: color, width: 2)
+              : null,
         ),
-        child: Icon(icon, color: color, size: 24),
+        child: Icon(
+          icon,
+          color: color,
+          size: 24,
+        ),
       ),
-      title: Text(title),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isActive,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WebViewScreen(
-              appId: _getAppId(app),
-              title: title,
-              url: url,
-              requiresAuth: requiresAuth,
-            ),
-          ),
+        // On tablets: Update provider to show embedded WebView
+        // This avoids navigation and keeps sidebar visible
+        ref.read(currentWebViewProvider.notifier).showWebView(
+          appId: appId,
+          title: title,
+          url: url,
+          requiresAuth: requiresAuth,
         );
       },
     );
   }
 
-  /// Build tablet home content (when no app is open)
+  /// Build tablet home content (shows either home screen or embedded webview)
   Widget _buildTabletHomeContent() {
+    final currentWebView = ref.watch(currentWebViewProvider);
+    
+    // Show WebView if one is active
+    if (currentWebView.hasWebView) {
+      return EmbeddedWebViewWidget(
+        key: ValueKey(currentWebView.appId), // Force rebuild on app change
+        appId: currentWebView.appId!,
+        title: currentWebView.title!,
+        url: currentWebView.url!,
+        requiresAuth: currentWebView.requiresAuth ?? false,
+        showAppBar: false, // Hide AppBar (main AppBar is visible)
+        showBottomBar: true,
+        onHomePressed: () {
+          // Clear WebView and return to home
+          ref.read(currentWebViewProvider.notifier).clearWebView();
+        },
+      );
+    }
+    
+    // Show home screen when no app is open
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
