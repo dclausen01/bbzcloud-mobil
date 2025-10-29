@@ -50,5 +50,20 @@
 		<string>schulcloud</string>
 		<string>untis</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Die App benötigt Zugriff auf die Kamera, um Fotos für Datei-Uploads aufzunehmen.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Die App benötigt Zugriff auf Ihre Fotos, um Dateien hochzuladen.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Die App benötigt Zugriff, um heruntergeladene Bilder in Ihrer Fotomediathek zu speichern.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Die App benötigt Zugriff auf das Mikrofon für Videokonferenzen (BigBlueButton).</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Die App benötigt Zugriff auf das lokale Netzwerk, um mit BBZ-Diensten zu kommunizieren.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
