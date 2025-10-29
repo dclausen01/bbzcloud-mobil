@@ -177,19 +177,6 @@ jobs:
           name: app-release-aab
           path: build/app/outputs/bundle/release/
       
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.6'
-          channel: 'stable'
-          cache: true
-      
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -226,9 +213,6 @@ jobs:
           PLAY_STORE_CONFIG_JSON: ${{ secrets.PLAY_STORE_CONFIG_JSON }}
         run: |
           echo "$PLAY_STORE_CONFIG_JSON" > android/play-store-service-account.json
-      
-      - name: Get dependencies
-        run: flutter pub get
       
       - name: Get version
         id: version
