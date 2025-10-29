@@ -16,6 +16,7 @@ import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/services/injection_scripts.dart';
 import 'package:bbzcloud_mobil/services/download_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
+import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
 
@@ -421,18 +422,30 @@ class _EmbeddedWebViewWidgetState
       return;
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          body: EmbeddedWebViewWidget(
-            appId: id,
-            title: title,
-            url: url,
-            requiresAuth: requiresAuth,
+    // Check if we have onHomePressed callback (indicates embedded mode on tablet)
+    if (widget.onHomePressed != null) {
+      // Tablet embedded mode: Update provider instead of navigating
+      ref.read(currentWebViewProvider.notifier).showWebView(
+        appId: id,
+        title: title,
+        url: url,
+        requiresAuth: requiresAuth,
+      );
+    } else {
+      // Phone fullscreen mode: Navigate to new screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: EmbeddedWebViewWidget(
+              appId: id,
+              title: title,
+              url: url,
+              requiresAuth: requiresAuth,
+            ),
           ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _updateNavigationButtons() async {
