@@ -60,3 +60,6 @@ android/fastlane/README.md
 # Play Store Service Account
 play-store-service-account.json
 google-play-api-key.json
+
+# Empty Flutter directory (causes GitHub Pages issues)
+flutter/
