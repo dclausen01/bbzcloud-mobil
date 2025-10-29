@@ -236,7 +236,7 @@ jobs:
       - name: Build and Deploy to Play Store
         run: |
           cd android
-          bundle exec fastlane deploy_open_testing
+          bundle exec fastlane deploy_internal_testing
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
