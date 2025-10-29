@@ -25,6 +25,9 @@ import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
 import 'package:bbzcloud_mobil/presentation/providers/todo_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/embedded_webview_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
+import 'package:android_intent_plus/android_intent.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -619,13 +622,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    return ListView.builder(
+    // Expand apps with native support into 2 entries (App + Web)
+    final List<Widget> listItems = [];
+    for (final app in apps) {
+      if (_hasNativeApp(app)) {
+        // Add App button (native)
+        listItems.add(_buildSplitAppListTile(app, isNativeApp: true));
+        // Add Web button (webview)
+        listItems.add(_buildSplitAppListTile(app, isNativeApp: false));
+      } else {
+        // Normal single button
+        listItems.add(_buildAppListTile(app));
+      }
+    }
+
+    return ListView(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      itemCount: apps.length,
-      itemBuilder: (context, index) {
-        final app = apps[index];
-        return _buildAppListTile(app);
-      },
+      children: listItems,
     );
   }
 
@@ -1105,6 +1118,125 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Check if app has native app option (for split buttons)
+  bool _hasNativeApp(dynamic app) {
+    if (app is AppItem) {
+      return app.id == 'schulcloud' || app.id == 'webuntis';
+    }
+    return false;
+  }
+
+  /// Get app configuration for native app launch
+  Map<String, dynamic> _getAppConfig(String appId) {
+    switch (appId) {
+      case 'schulcloud':
+        return {
+          'androidPackage': 'de.heinekingmedia.schulcloud',
+          'componentName': 'de.heinekingmedia.stashcat.start.StartActivity',
+          'iosScheme': 'schulcloud://',
+          'androidStoreUrl': 'https://play.google.com/store/apps/details?id=de.heinekingmedia.schulcloud',
+          'iosStoreUrl': 'https://apps.apple.com/de/app/schul-cloud/id1426477195',
+          'appName': 'schul.cloud',
+        };
+      case 'webuntis':
+        return {
+          'androidPackage': 'com.grupet.web.app',
+          'componentName': null,
+          'iosScheme': 'untis://',
+          'androidStoreUrl': 'https://play.google.com/store/apps/details?id=com.grupet.web.app',
+          'iosStoreUrl': 'https://apps.apple.com/app/untis-mobile/id926186904',
+          'appName': 'WebUntis',
+        };
+      default:
+        return {};
+    }
+  }
+
+  /// Launch native app (opens external app)
+  Future<void> _launchNativeApp(BuildContext context, String appId) async {
+    final config = _getAppConfig(appId);
+    final appName = config['appName'] ?? 'App';
+    
+    try {
+      if (Platform.isAndroid) {
+        final packageName = config['androidPackage'] as String;
+        final componentName = config['componentName'] as String?;
+        
+        final intent = AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          package: packageName,
+          componentName: componentName,
+          flags: <int>[0x10000000], // FLAG_ACTIVITY_NEW_TASK
+        );
+        
+        try {
+          await intent.launch();
+        } catch (launchError) {
+          if (context.mounted) {
+            _showInstallAppDialog(context, appName, config);
+          }
+        }
+      } else if (Platform.isIOS) {
+        final appUri = Uri.parse(config['iosScheme'] as String);
+        
+        if (await canLaunchUrl(appUri)) {
+          await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        } else {
+          if (context.mounted) {
+            _showInstallAppDialog(context, appName, config);
+          }
+        }
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Öffnen der App: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show dialog to install native app
+  void _showInstallAppDialog(BuildContext context, String appName, Map<String, dynamic> config) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('App nicht installiert'),
+        content: Text(
+          'Die $appName App ist nicht installiert.\n\n'
+          'Möchten Sie die App aus dem Store herunterladen?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final Uri storeUrl;
+              if (Platform.isIOS) {
+                storeUrl = Uri.parse(config['iosStoreUrl'] as String);
+              } else if (Platform.isAndroid) {
+                storeUrl = Uri.parse(config['androidStoreUrl'] as String);
+              } else {
+                return;
+              }
+              
+              if (await canLaunchUrl(storeUrl)) {
+                await launchUrl(storeUrl, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text('Zum Store'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleAppTap(BuildContext context, dynamic app) {
     String id;
     String title;
@@ -1135,6 +1267,83 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           requiresAuth: requiresAuth,
         ),
       ),
+    );
+  }
+
+  /// Build split app list tile (for apps with native support)
+  Widget _buildSplitAppListTile(dynamic app, {required bool isNativeApp}) {
+    final String title;
+    final String url;
+    final Color color;
+    final IconData icon;
+    final bool requiresAuth;
+    final String appId = _getAppId(app);
+
+    if (app is AppItem) {
+      title = app.title;
+      url = app.url;
+      color = app.color;
+      icon = app.icon;
+      requiresAuth = app.requiresAuth;
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    // Check if Web version is currently active (only for web button)
+    final currentWebView = ref.watch(tabletWebViewProvider);
+    final isActive = !isNativeApp && currentWebView.appId == appId;
+
+    // Different icon and label for App vs Web
+    final IconData displayIcon;
+    final String displayTitle;
+    
+    if (isNativeApp) {
+      displayIcon = Icons.open_in_new;
+      displayTitle = appId == 'webuntis' ? 'WebUntis App' : 'schul.cloud App';
+    } else {
+      displayIcon = icon;
+      displayTitle = appId == 'webuntis' ? 'WebUntis Web' : 'schul.cloud Web';
+    }
+
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color.withOpacity(isActive ? 0.3 : 0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: isActive
+              ? Border.all(color: color, width: 2)
+              : null,
+        ),
+        child: Icon(
+          displayIcon,
+          color: color,
+          size: 24,
+        ),
+      ),
+      title: Text(
+        displayTitle,
+        style: TextStyle(
+          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
+      selected: isActive,
+      onTap: () {
+        if (isNativeApp) {
+          // Launch native app
+          _launchNativeApp(context, appId);
+        } else {
+          // Open in embedded WebView
+          ref.read(tabletWebViewProvider.notifier).showWebView(
+            appId: appId,
+            title: title,
+            url: url,
+            requiresAuth: requiresAuth,
+          );
+        }
+      },
     );
   }
 
