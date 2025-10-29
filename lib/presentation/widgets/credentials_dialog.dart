@@ -274,26 +274,15 @@ class _CredentialsDialogState extends ConsumerState<CredentialsDialog> {
                               ),
                               const SizedBox(height: AppSpacing.md),
 
-                              // WebUntis Email
+                              // WebUntis Username (no email validation)
                               TextFormField(
                                 controller: _webuntisEmailController,
-                                keyboardType: TextInputType.emailAddress,
+                                keyboardType: TextInputType.text,
                                 decoration: const InputDecoration(
                                   labelText: 'WebUntis-Benutzername (optional)',
                                   hintText: 'Falls abweichend',
                                   prefixIcon: Icon(Icons.calendar_today),
                                 ),
-                                validator: (value) {
-                                  if (value != null && value.isNotEmpty) {
-                                    try {
-                                      Validators.validateEmail(value);
-                                      return null;
-                                    } catch (e) {
-                                      return 'Ungültige E-Mail-Adresse';
-                                    }
-                                  }
-                                  return null;
-                                },
                               ),
                               const SizedBox(height: AppSpacing.md),
 

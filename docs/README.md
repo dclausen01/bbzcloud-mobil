@@ -93,23 +93,49 @@ Erstellung von Screenshots, Feature Graphic und Store-Texten
 
 ---
 
+### 6. [iOS Setup](IOS_SETUP.md) 🍎
+Einrichtung und Veröffentlichung im Apple App Store
+
+**Inhalt:**
+- Info.plist Konfiguration (✅ bereits durchgeführt)
+- Apple Developer Account Setup
+- Code Signing & Certificates
+- App Store Connect Einrichtung
+- TestFlight Beta-Testing
+- App Store Submission
+- Fastlane für iOS (optional)
+
+**Für wen:** iOS-Entwickler / App-Publisher
+
+**Zeitaufwand:** 4-8 Stunden (einmalig)
+
+---
+
 ## 🎯 Schnellzugriff nach Rolle
 
-### Entwickler
+### Entwickler (Android)
 1. [Keystore Setup](KEYSTORE_SETUP.md) - Signing einrichten
 2. [GitHub Secrets](GITHUB_SECRETS.md) - CI/CD konfigurieren
 3. [Release-Prozess](RELEASE_PROCESS.md) - Gesamtübersicht
 
+### Entwickler (iOS)
+1. [iOS Setup](IOS_SETUP.md) - Vollständige iOS-Anleitung
+2. Apple Developer Account erstellen
+3. Xcode Code Signing konfigurieren
+
 ### Designer / Marketing
 1. [Store Assets](STORE_ASSETS.md) - Grafiken erstellen
-2. [Play Store Setup](PLAY_STORE_SETUP.md) - Store Listing
+2. [Play Store Setup](PLAY_STORE_SETUP.md) - Store Listing (Android)
+3. [iOS Setup](IOS_SETUP.md) - App Store Screenshots & Listing (iOS)
 
 ### Projekt-Manager
 1. [Release-Prozess](RELEASE_PROCESS.md) - Gesamtübersicht
-2. [Play Store Setup](PLAY_STORE_SETUP.md) - Veröffentlichung
+2. [Play Store Setup](PLAY_STORE_SETUP.md) - Veröffentlichung (Android)
+3. [iOS Setup](IOS_SETUP.md) - Veröffentlichung (iOS)
 
 ## 📋 Checkliste: Vor dem ersten Release
 
+### Android (Google Play Store)
 - [ ] **Google Play Developer Account** erstellt (25 USD)
 - [ ] **Keystore** erstellt und gesichert ([KEYSTORE_SETUP.md](KEYSTORE_SETUP.md))
 - [ ] **Feature Graphic** erstellt (1024x500px) ([STORE_ASSETS.md](STORE_ASSETS.md))
@@ -121,6 +147,20 @@ Erstellung von Screenshots, Feature Graphic und Store-Texten
 - [ ] **GitHub Secrets** konfiguriert ([GITHUB_SECRETS.md](GITHUB_SECRETS.md))
 - [ ] **Lokaler Build** erfolgreich
 - [ ] **Erster Release** manuell hochgeladen
+
+### iOS (Apple App Store)
+- [ ] **Apple Developer Account** erstellt (99 USD/Jahr)
+- [ ] **Info.plist** konfiguriert ✅ (bereits erledigt)
+- [ ] **Bundle ID** registriert
+- [ ] **Code Signing** eingerichtet (Xcode)
+- [ ] **App Store Connect** App erstellt
+- [ ] **Screenshots** für iOS erstellt (verschiedene Größen)
+- [ ] **App Icon** 1024x1024px erstellt
+- [ ] **Privacy Policy** gehostet und verlinkt
+- [ ] **TestFlight** Beta-Test durchgeführt
+- [ ] **App Store** Submission vorbereitet
+
+Siehe [iOS Setup](IOS_SETUP.md) für Details.
 
 ## 🔄 Workflow: Zukünftige Releases
 
