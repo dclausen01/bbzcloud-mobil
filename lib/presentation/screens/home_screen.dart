@@ -238,7 +238,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: _buildAppBar(isTablet: false),
-      drawer: const AppDrawer(),
+      // No drawer for phones - all actions now in top bar
       body: apps.isEmpty
           ? _buildNoAppsScreen()
           : _buildPhoneContent(user, apps),
@@ -248,8 +248,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// Build AppBar
   AppBar _buildAppBar({required bool isTablet}) {
     return AppBar(
-      // Hide drawer button on tablets
-      automaticallyImplyLeading: !isTablet,
+      // Hide drawer button completely (no sidebar on phones anymore)
+      automaticallyImplyLeading: false,
       title: const Text(AppStrings.appTitle),
       actions: [
         // Todo Button with Badge
@@ -320,6 +320,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           },
           tooltip: _isEditMode ? 'Fertig' : 'Bearbeiten',
         ),
+        // Settings Button (always visible, especially for phones without sidebar)
+        if (!isTablet)
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+            tooltip: AppStrings.settings,
+          ),
       ],
     );
   }
@@ -345,6 +357,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         
         // Bottom Actions
         const Divider(),
+        // Quick Add Todo Button (only on tablets)
+        if (!_isEditMode)
+          ListTile(
+            leading: const Icon(Icons.add_task),
+            title: const Text('Schnell Aufgabe hinzufügen'),
+            onTap: () => _showQuickAddTodoDialog(),
+            tileColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+          ),
         ListTile(
           leading: const Icon(Icons.check_circle_outline),
           title: const Text('Aufgaben'),
@@ -1344,6 +1364,125 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
         }
       },
+    );
+  }
+
+  /// Show quick add todo dialog (simplified version for tablet sidebar)
+  void _showQuickAddTodoDialog() {
+    final controller = TextEditingController();
+    TodoPriority selectedPriority = TodoPriority.normal;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Neue Aufgabe'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: 'Aufgabe eingeben...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    ref.read(todoProvider.notifier).addTodo(
+                          value,
+                          priority: selectedPriority,
+                        );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Aufgabe hinzugefügt'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Priorität:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: 8,
+                children: TodoPriority.values.map((priority) {
+                  final isSelected = selectedPriority == priority;
+                  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                  
+                  final textColor = isSelected 
+                      ? Colors.white 
+                      : (isDarkMode && priority == TodoPriority.normal)
+                          ? Colors.black87
+                          : null;
+                  
+                  return ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.flag,
+                          size: 16,
+                          color: isSelected ? Colors.white : priority.color,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          priority.displayName,
+                          style: TextStyle(color: textColor),
+                        ),
+                      ],
+                    ),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        selectedPriority = priority;
+                      });
+                    },
+                    selectedColor: priority.color,
+                    backgroundColor: priority.color.withOpacity(0.2),
+                    side: BorderSide(color: priority.color),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  ref.read(todoProvider.notifier).addTodo(
+                        controller.text,
+                        priority: selectedPriority,
+                      );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Aufgabe hinzugefügt'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Hinzufügen'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
