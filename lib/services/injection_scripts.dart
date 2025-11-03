@@ -610,7 +610,7 @@ class InjectionScripts {
   }
 
   /// Outlook/Exchange credential injection with improved button detection
-  /// Uses Desktop-App approach: ALWAYS reload after 5 seconds (not conditional)
+  /// Uses Desktop-App approach with ONE-TIME reload after login
   static String getOutlookInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -619,6 +619,15 @@ class InjectionScripts {
       (async function() {
         try {
           console.log('Outlook: Starting credential injection (Desktop-App method)');
+          
+          // Check if we already did the post-login reload
+          const reloadDoneKey = 'bbzcloud_outlook_reload_done';
+          const reloadDone = sessionStorage.getItem(reloadDoneKey);
+          
+          if (reloadDone === 'true') {
+            console.log('Outlook: Post-login reload already done, skipping');
+            return;
+          }
           
           // Find and fill email field
           const emailSelectors = [
@@ -719,23 +728,35 @@ class InjectionScripts {
             return false;
           }
           
-          // Wait for fields to be filled, then click
-          if (emailField || passwordField) {
-            setTimeout(() => {
-              if (!clickSubmitButton()) {
-                // Try again after a longer delay
-                setTimeout(clickSubmitButton, 1000);
-              }
-            }, 500);
-          }
+          // Only do ONE-TIME reload after login (Desktop-App method)
+          // Check if we actually filled credentials (indicating login attempt)
+          const didFillCredentials = (emailField && emailField.value === "$escapedEmail") || 
+                                    (passwordField && passwordField.value === "$escapedPassword");
           
-          // ALWAYS reload after 5 seconds (Desktop-App method)
-          // This prevents false error messages and ensures proper login flow
-          // Desktop-App uses: await sleep(5000); webview.reload();
-          setTimeout(() => {
-            console.log('Outlook: Reloading page after 5 seconds (desktop-app method)');
-            window.location.reload();
-          }, 5000);
+          if (didFillCredentials) {
+            console.log('Outlook: Credentials filled, will reload ONCE after 5 seconds');
+            
+            // Wait for fields to be filled, then click
+            if (emailField || passwordField) {
+              setTimeout(() => {
+                if (!clickSubmitButton()) {
+                  // Try again after a longer delay
+                  setTimeout(clickSubmitButton, 1000);
+                }
+              }, 500);
+            }
+            
+            // ONE-TIME reload after 5 seconds (Desktop-App method)
+            // This prevents false error messages and ensures proper login flow
+            // Mark that we will do the reload to prevent multiple reloads
+            setTimeout(() => {
+              console.log('Outlook: Reloading page ONCE after 5 seconds (desktop-app method)');
+              sessionStorage.setItem(reloadDoneKey, 'true');
+              window.location.reload();
+            }, 5000);
+          } else {
+            console.log('Outlook: No credentials filled, skipping reload (already logged in or different page)');
+          }
         } catch (error) {
           console.error('Outlook injection error:', error);
         }
