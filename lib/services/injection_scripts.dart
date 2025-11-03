@@ -610,14 +610,15 @@ class InjectionScripts {
   }
 
   /// Outlook/Exchange credential injection with improved button detection
+  /// Uses Desktop-App approach: ALWAYS reload after 5 seconds (not conditional)
   static String getOutlookInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
     
     return '''
-      (function() {
+      (async function() {
         try {
-          console.log('Outlook: Starting credential injection');
+          console.log('Outlook: Starting credential injection (Desktop-App method)');
           
           // Find and fill email field
           const emailSelectors = [
@@ -727,6 +728,14 @@ class InjectionScripts {
               }
             }, 500);
           }
+          
+          // ALWAYS reload after 5 seconds (Desktop-App method)
+          // This prevents false error messages and ensures proper login flow
+          // Desktop-App uses: await sleep(5000); webview.reload();
+          setTimeout(() => {
+            console.log('Outlook: Reloading page after 5 seconds (desktop-app method)');
+            window.location.reload();
+          }, 5000);
         } catch (error) {
           console.error('Outlook injection error:', error);
         }
