@@ -610,7 +610,7 @@ class InjectionScripts {
   }
 
   /// Outlook/Exchange credential injection with improved button detection
-  /// Includes reload ONLY if credentials were actually injected (not when already logged in via session cookie)
+  /// Uses Desktop-App approach: ALWAYS reload after 5 seconds (not conditional)
   static String getOutlookInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
@@ -618,10 +618,7 @@ class InjectionScripts {
     return '''
       (async function() {
         try {
-          console.log('Outlook: Starting credential injection');
-          
-          // Track if we actually injected credentials
-          let credentialsInjected = false;
+          console.log('Outlook: Starting credential injection (Desktop-App method)');
           
           // Find and fill email field
           const emailSelectors = [
@@ -645,9 +642,6 @@ class InjectionScripts {
             emailField.dispatchEvent(new Event('change', { bubbles: true }));
             emailField.dispatchEvent(new Event('blur', { bubbles: true }));
             console.log('Outlook: Email filled');
-            credentialsInjected = true;
-          } else if (emailField && emailField.value !== '') {
-            console.log('Outlook: Email field already filled - user might be logged in via session cookie');
           }
           
           // Find and fill password field
@@ -671,9 +665,6 @@ class InjectionScripts {
             passwordField.dispatchEvent(new Event('change', { bubbles: true }));
             passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
             console.log('Outlook: Password filled');
-            credentialsInjected = true;
-          } else if (passwordField && passwordField.value !== '') {
-            console.log('Outlook: Password field already filled - user might be logged in via session cookie');
           }
           
           // Auto-click submit/next button with comprehensive selector list
@@ -738,18 +729,13 @@ class InjectionScripts {
             }, 500);
           }
           
-          // RELOAD ONLY if credentials were actually injected
-          // This prevents the false error message "You don't have access to this account"
-          // that occurs when credentials are injected on the first load
-          if (credentialsInjected) {
-            console.log('Outlook: Credentials were injected - reloading page to prevent false error message');
-            // Wait for submit click to complete, then reload
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-          } else {
-            console.log('Outlook: No credentials injected (user likely logged in via session cookie) - no reload needed');
-          }
+          // ALWAYS reload after 5 seconds (Desktop-App method)
+          // This prevents false error messages and ensures proper login flow
+          // Desktop-App uses: await sleep(5000); webview.reload();
+          setTimeout(() => {
+            console.log('Outlook: Reloading page after 5 seconds (desktop-app method)');
+            window.location.reload();
+          }, 5000);
         } catch (error) {
           console.error('Outlook injection error:', error);
         }
