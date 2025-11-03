@@ -15,6 +15,7 @@ Diese Anleitung erklärt, wie du die App im Google Play Store veröffentlichst u
 1. Gehe zu [Google Play Console](https://play.google.com/console)
 2. Klicke auf "App erstellen"
 3. Fülle folgende Informationen aus:
+
    - **App-Name**: BBZCloud Mobile
    - **Standardsprache**: Deutsch (Deutschland)
    - **App oder Spiel**: App
@@ -39,11 +40,13 @@ Navigation: **Wachstum → Store-Präsenz → App-Details**
 ⚠️ **ERFORDERLICH**: Du musst eine URL zu deiner Datenschutzrichtlinie angeben.
 
 Optionen:
+
 1. **Eigene Website**: Hoste die Datenschutzrichtlinie auf deiner Website
 2. **GitHub Pages**: Erstelle eine Seite in deinem Repository
 3. **Freie Hosting-Dienste**: z.B. Google Sites, WordPress.com
 
 **Mindestinhalt der Datenschutzrichtlinie:**
+
 - Welche Daten werden gesammelt?
 - Wie werden die Daten verwendet?
 - Wie werden die Daten geschützt?
@@ -56,11 +59,13 @@ Navigation: **Wachstum → Store-Präsenz → Hauptdetails zum Store-Eintrag**
 #### App-Name & Beschreibungen
 
 **Kurzbeschreibung** (max. 80 Zeichen):
+
 ```
 Mobile App für den Zugriff auf BBZCloud-Dienste
 ```
 
 **Vollständige Beschreibung** (max. 4000 Zeichen):
+
 ```
 BBZCloud Mobile - Dein zentraler Zugriff auf BBZCloud-Dienste
 
@@ -106,15 +111,18 @@ Support: [Deine E-Mail]
 #### Grafische Assets
 
 **App-Symbol** (512 x 512 px):
+
 - Upload: `assets/icon.png`
 
 **Feature-Grafik** (1024 x 500 px):
+
 - Erstelle eine ansprechende Grafik mit:
   - App-Logo
   - Slogan
   - Farbschema der App
 
 **Screenshots** (mindestens 2, empfohlen 4-8):
+
 - Telefon: 16:9 oder 9:16 Format
 - Zeige wichtige Features:
   1. Home-Screen mit App-Liste
@@ -123,6 +131,7 @@ Support: [Deine E-Mail]
   4. Settings/Custom Apps
 
 **Optionale Assets:**
+
 - Promo-Video (max. 30 Sekunden)
 - Tablet-Screenshots
 - TV-Screenshots
@@ -155,17 +164,21 @@ Navigation: **Richtlinien → App-Inhalte → Datensicherheit**
 Beantworte den Fragebogen:
 
 1. **Erfasst oder teilt die App Nutzerdaten?**
+
    - Ja (Anmeldedaten werden lokal gespeichert)
 
 2. **Welche Daten werden erfasst?**
+
    - Anmeldeinformationen (lokal gespeichert)
    - App-Aktivität (lokal gespeichert)
 
 3. **Wie werden die Daten verwendet?**
+
    - App-Funktionalität
    - Authentifizierung
 
 4. **Werden Daten verschlüsselt?**
+
    - Ja (flutter_secure_storage)
 
 5. **Können Nutzer Datenlöschung anfordern?**
@@ -219,14 +232,17 @@ Google hat den Prozess vereinfacht. Es gibt **KEINEN** separaten "API-Zugriff" M
 1. **Öffne Play Console:** [https://play.google.com/console](https://play.google.com/console)
 
 2. **Navigation zu Benutzern:**
+
    - Klicke links unten auf **"Alle Apps"** (um sicherzustellen, dass du im Account-Bereich bist)
    - Dann rechts oben auf das **⚙️ Zahnrad-Symbol** oder **"Settings"**
    - Wähle **"Nutzer und Berechtigungen"** (Users and permissions)
-   
+
    **Direkter Weg:**
+
    - https://play.google.com/console/users-and-permissions
 
 3. **Service Account hinzufügen:**
+
    - Klicke auf **"Neuen Nutzer einladen"** oder **"Invite new users"**
    - **E-Mail-Adresse:** Gib die Service Account E-Mail ein:
      ```
@@ -238,27 +254,28 @@ Google hat den Prozess vereinfacht. Es gibt **KEINEN** separaten "API-Zugriff" M
    - Tab **"App-Berechtigungen"** oder **"App permissions"**
    - Klicke **"App hinzufügen"** oder **"Add app"**
    - Wähle deine App **"BBZCloud Mobile"**
-   
 5. **Berechtigungen auswählen:**
-   
+
    **Minimal erforderlich:**
+
    - ✅ **Releases anzeigen** (View app information and download bulk reports)
    - ✅ **Releases verwalten** (Release to production, exclude devices, and use Play App Signing)
    - ✅ **Releases in Produktionstrack freigeben** (Release apps to testing tracks)
-   
+
    **Empfohlen (für volle Automatisierung):**
+
    - ✅ **Admin** (alle Berechtigungen) - am einfachsten für CI/CD
-   
+
    **ODER einzeln:**
+
    - ✅ Create and edit draft releases
    - ✅ Promote releases
    - ✅ Manage testing tracks
    - ✅ View app information
-   
+
 6. **Kontoberechtigungen (optional):**
    - Tab **"Kontoberechtigungen"** oder **"Account permissions"**
    - Normalerweise: **Keine Auswahl** nötig (nur für Account-Level-Zugriff)
-   
 7. **Einladung senden:**
    - Klicke **"Einladen"** oder **"Invite user"**
    - Der Service Account wird sofort aktiv (keine Bestätigungs-E-Mail nötig!)
@@ -266,6 +283,7 @@ Google hat den Prozess vereinfacht. Es gibt **KEINEN** separaten "API-Zugriff" M
 **2. Berechtigungen verifizieren:**
 
 Zurück in **"Nutzer und Berechtigungen"**:
+
 - Du solltest den Service Account in der Liste sehen
 - Status: **Aktiv** / **Active**
 - Bei Klick auf den Namen siehst du die erteilten Berechtigungen
@@ -279,8 +297,8 @@ Zurück in **"Nutzer und Berechtigungen"**:
 1. **Google Cloud Console:**
    - Öffne: [https://console.cloud.google.com/iam-admin/iam](https://console.cloud.google.com/iam-admin/iam)
    - Wähle dein Projekt
-   
 2. **Service Account Rolle hinzufügen:**
+
    - Finde deinen Service Account
    - Klicke auf **"Edit principal"** (Stift-Symbol)
    - **Rolle hinzufügen:**
@@ -298,11 +316,14 @@ Zurück in **"Nutzer und Berechtigungen"**:
 #### Troubleshooting:
 
 **Problem 1: "API-Zugriff" Menüpunkt existiert nicht**
+
 - ✅ **Das ist KORREKT!** Google hat diesen Menüpunkt entfernt
 - ✅ Verwende stattdessen **"Nutzer und Berechtigungen"**
 
 **Problem 2: Service Account kann nicht hinzugefügt werden**
+
 - **Fehler: "Invalid email"**
+
   - Prüfe, ob die Service Account E-Mail korrekt ist
   - Format: `NAME@PROJECT_ID.iam.gserviceaccount.com`
   - Kopiere die E-Mail direkt aus Cloud Console → Service Accounts
@@ -313,11 +334,13 @@ Zurück in **"Nutzer und Berechtigungen"**:
   - Eventuell unter einem anderen Namen/E-Mail
 
 **Problem 3: Berechtigungen werden nicht angewendet**
+
 - Warte 10-15 Minuten (Propagation-Zeit)
 - Lösche und erstelle den Benutzer neu
 - Prüfe, ob der Service Account in Cloud Console noch existiert
 
 **Problem 4: "You don't have permission to add users"**
+
 - Du brauchst **"Administrator"** oder **"Inhaber"** Rolle im Developer Account
 - Kontaktiere den Account-Inhaber
 
@@ -355,6 +378,7 @@ Zurück in **"Nutzer und Berechtigungen"**:
 ### 3.1 Keystore lokal einrichten
 
 Folge der Anleitung in `docs/KEYSTORE_SETUP.md`:
+
 1. Keystore erstellen
 2. `android/key.properties` konfigurieren
 3. Lokalen Build testen
@@ -367,6 +391,7 @@ flutter build appbundle --release
 ```
 
 Die AAB-Datei findest du unter:
+
 ```
 build/app/outputs/bundle/release/app-release.aab
 ```
@@ -381,9 +406,10 @@ build/app/outputs/bundle/release/app-release.aab
 4. Wähle die `app-release.aab` Datei
 5. **Release-Name**: Version 1.0.0
 6. **Versionshinweise** (kopiere aus CHANGELOG.md):
+
    ```
    Erste öffentliche Release-Version
-   
+
    Features:
    - WebView-basierte Navigation für BBZCloud-Dienste
    - Integrierte Apps: Moodle, Outlook, OneDrive, SharePoint, Teams, OneNote
@@ -391,6 +417,7 @@ build/app/outputs/bundle/release/app-release.aab
    - Custom App-Integration
    - Dark/Light Mode Support
    ```
+
 7. Klicke auf "Überprüfen"
 8. Prüfe alle Informationen
 9. Klicke auf "Release starten"
@@ -407,6 +434,7 @@ build/app/outputs/bundle/release/app-release.aab
 Siehe `docs/GITHUB_SECRETS.md` für detaillierte Anleitung.
 
 Erforderliche Secrets:
+
 - `KEYSTORE_BASE64`
 - `KEYSTORE_PASSWORD`
 - `KEY_ALIAS`
@@ -444,23 +472,36 @@ Nach erfolgreichem ersten Release:
 
 ## Release Tracks
 
-### Open Testing (Aktuell konfiguriert)
-- ✅ Öffentlich über Link verfügbar
-- ✅ Keine Begrenzung der Tester
-- ✅ Automatische Updates
-- ⚠️ Link muss geteilt werden
+### Closed Testing - Alpha Track (Aktuell konfiguriert)
 
-### Closed Testing (Alpha/Beta)
+- ✅ Nur für eingeladene Tester (Closed Beta)
+- ✅ E-Mail-basierte Einladungen
+- ✅ Feedback-System
+- ✅ Kontrollierte Nutzergruppe
+- 🔒 Nicht öffentlich sichtbar
+
+### Closed Testing - Beta Track
+
 - Nur für eingeladene Tester
+- Größere Nutzergruppe als Alpha
 - E-Mail-basierte Einladungen
 - Feedback-System
 
+### Open Testing
+
+- Öffentlich über Link verfügbar
+- Keine Begrenzung der Tester
+- Automatische Updates
+- Link muss geteilt werden
+
 ### Internal Testing
+
 - Nur für Team-Mitglieder
 - Schnelle Veröffentlichung
 - Ideal für QA
 
 ### Production
+
 - Öffentlich im Play Store
 - Gestaffelte Veröffentlichung möglich
 - Vollständige Store-Präsenz
@@ -468,19 +509,23 @@ Nach erfolgreichem ersten Release:
 ## Troubleshooting
 
 ### Fehler: "Package name already exists"
+
 - Die Package-ID ist bereits verwendet
 - Ändere die Package-ID in `android/app/build.gradle.kts`
 
 ### Fehler: "Upload failed: Authentication failed"
+
 - Prüfe Service Account Berechtigungen
 - Stelle sicher, dass die JSON-Datei gültig ist
 - Prüfe ob API aktiviert ist
 
 ### Fehler: "APK/AAB signature mismatch"
+
 - Der Keystore stimmt nicht überein
 - Verwende den gleichen Keystore für alle Releases
 
 ### Release bleibt in "Draft"
+
 - Prüfe ob alle erforderlichen Informationen ausgefüllt sind
 - Prüfe Inhaltsklassifizierung
 - Prüfe Datensicherheitsformular
@@ -488,6 +533,7 @@ Nach erfolgreichem ersten Release:
 ## Nächste Schritte
 
 Nach erfolgreichem Setup:
+
 1. ✅ Tester zum Open Testing Track einladen
 2. ✅ Feedback sammeln
 3. ✅ Bei Bedarf zu Closed Testing wechseln

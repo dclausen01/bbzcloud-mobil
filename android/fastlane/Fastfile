@@ -1,12 +1,12 @@
 default_platform(:android)
 
 platform :android do
-  desc "Deploy a new version to the Google Play Store Internal Testing Track"
-  lane :deploy_internal_testing do
-    # Upload to Play Store Internal Testing track
+  desc "Deploy a new version to the Google Play Store Alpha Track (Closed Beta)"
+  lane :deploy_alpha do
+    # Upload to Play Store Alpha track (closed beta)
     # AAB is already built by GitHub Actions build job
     upload_to_play_store(
-      track: 'internal',
+      track: 'alpha',
       aab: '../build/app/outputs/bundle/release/app-release.aab',
       skip_upload_apk: true,
       skip_upload_metadata: false,
@@ -31,10 +31,10 @@ platform :android do
     )
   end
 
-  desc "Promote from Open Testing to Production"
+  desc "Promote from Alpha to Production"
   lane :promote_to_production do
     upload_to_play_store(
-      track: 'open',
+      track: 'alpha',
       track_promote_to: 'production',
       skip_upload_apk: true,
       skip_upload_aab: true,
