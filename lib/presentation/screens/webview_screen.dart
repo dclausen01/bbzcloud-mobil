@@ -517,9 +517,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   /// WebUntis-specific 3-phase flow handler
   Future<void> _handleWebUntisFlow(InAppWebViewController controller, String url) async {
     try {
-      // Apply persistent zoom for WebUntis
-      await _applyWebUntisPersistentZoom(controller);
-      
       final isLoginPage = url.contains('login') || !url.contains('today');
       
       if (isLoginPage && !_webuntisPhase1Done) {
@@ -594,74 +591,6 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
       }
     } catch (error, stackTrace) {
       logger.error('Error in WebUntis flow', error, stackTrace);
-    }
-  }
-
-  /// Apply persistent 150% zoom for WebUntis WITH scroll fix
-  Future<void> _applyWebUntisPersistentZoom(InAppWebViewController controller) async {
-    try {
-      await controller.evaluateJavascript(source: '''
-        (function() {
-          // Set zoom via CSS transform (persistent method) + Scroll Fix
-          if (!document.getElementById('bbzcloud-webuntis-zoom')) {
-            const style = document.createElement('style');
-            style.id = 'bbzcloud-webuntis-zoom';
-            style.textContent = \`
-              /* 150% Zoom */
-              body {
-                zoom: 1.5;
-                -moz-transform: scale(1.5);
-                -moz-transform-origin: 0 0;
-              }
-              
-              /* Scroll Fix: Ensure all scrollable containers work correctly with zoom */
-              .scrollable,
-              .scroll-container,
-              [class*="scroll"],
-              [class*="list"],
-              .timetable,
-              .calendar,
-              .today-view,
-              main,
-              [role="main"],
-              .main-content,
-              div[class*="container"]:not(body) {
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                -webkit-overflow-scrolling: touch !important;
-                overscroll-behavior: contain !important;
-                touch-action: pan-y !important;
-                /* Fix height calculation with zoom */
-                min-height: 0 !important;
-              }
-              
-              /* Fix for navigation sidebar/list */
-              nav,
-              .navigation,
-              .nav-list,
-              [class*="navigation"],
-              aside {
-                overflow-y: auto !important;
-                -webkit-overflow-scrolling: touch !important;
-                max-height: 100vh !important;
-              }
-            \`;
-            document.head.appendChild(style);
-            console.log('WebUntis: Applied persistent 150% zoom with scroll fix');
-            
-            // Force scroll recalculation after zoom is applied
-            setTimeout(() => {
-              // Trigger reflow to recalculate scroll heights
-              document.body.style.display = 'none';
-              document.body.offsetHeight; // Force reflow
-              document.body.style.display = '';
-              console.log('WebUntis: Scroll heights recalculated');
-            }, 100);
-          }
-        })();
-      ''');
-    } catch (error, stackTrace) {
-      logger.error('Error applying WebUntis zoom', error, stackTrace);
     }
   }
 
