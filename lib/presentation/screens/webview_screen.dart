@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -93,17 +94,62 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
             onSelected: (value) async {
               switch (value) {
                 case 'open_browser':
-                  // TODO: Open in external browser
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('In externem Browser öffnen')),
-                  );
+                  if (_currentUrl != null) {
+                    try {
+                      final uri = Uri.parse(_currentUrl!);
+                      final launched = await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                      
+                      if (launched) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Im Browser geöffnet'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      } else {
+                        throw Exception('Could not launch URL');
+                      }
+                    } catch (error) {
+                      logger.error('Error opening in browser', error);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Fehler beim Öffnen im Browser'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
                   break;
                 case 'copy_url':
                   if (_currentUrl != null) {
-                    // TODO: Copy to clipboard
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('URL kopiert')),
-                    );
+                    try {
+                      await Clipboard.setData(ClipboardData(text: _currentUrl!));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('URL in Zwischenablage kopiert'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } catch (error) {
+                      logger.error('Error copying URL', error);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Fehler beim Kopieren der URL'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
                   }
                   break;
               }
@@ -551,24 +597,66 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
     }
   }
 
-  /// Apply persistent 150% zoom for WebUntis
+  /// Apply persistent 150% zoom for WebUntis WITH scroll fix
   Future<void> _applyWebUntisPersistentZoom(InAppWebViewController controller) async {
     try {
       await controller.evaluateJavascript(source: '''
         (function() {
-          // Set zoom via CSS transform (persistent method)
+          // Set zoom via CSS transform (persistent method) + Scroll Fix
           if (!document.getElementById('bbzcloud-webuntis-zoom')) {
             const style = document.createElement('style');
             style.id = 'bbzcloud-webuntis-zoom';
-            style.textContent = `
+            style.textContent = \`
+              /* 150% Zoom */
               body {
                 zoom: 1.5;
                 -moz-transform: scale(1.5);
                 -moz-transform-origin: 0 0;
               }
-            `;
+              
+              /* Scroll Fix: Ensure all scrollable containers work correctly with zoom */
+              .scrollable,
+              .scroll-container,
+              [class*="scroll"],
+              [class*="list"],
+              .timetable,
+              .calendar,
+              .today-view,
+              main,
+              [role="main"],
+              .main-content,
+              div[class*="container"]:not(body) {
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                overscroll-behavior: contain !important;
+                touch-action: pan-y !important;
+                /* Fix height calculation with zoom */
+                min-height: 0 !important;
+              }
+              
+              /* Fix for navigation sidebar/list */
+              nav,
+              .navigation,
+              .nav-list,
+              [class*="navigation"],
+              aside {
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                max-height: 100vh !important;
+              }
+            \`;
             document.head.appendChild(style);
-            console.log('WebUntis: Applied persistent 150% zoom');
+            console.log('WebUntis: Applied persistent 150% zoom with scroll fix');
+            
+            // Force scroll recalculation after zoom is applied
+            setTimeout(() => {
+              // Trigger reflow to recalculate scroll heights
+              document.body.style.display = 'none';
+              document.body.offsetHeight; // Force reflow
+              document.body.style.display = '';
+              console.log('WebUntis: Scroll heights recalculated');
+            }, 100);
           }
         })();
       ''');
