@@ -1003,6 +1003,81 @@ class InjectionScripts {
     description: 'Backup sessionStorage + cookies to localStorage for session persistence',
   );
 
+  /// Outlook error page fallback - Auto-navigate back twice when permission error appears
+  /// This handles the "Sie sind nicht autorisiert" error that sometimes appears after login
+  static const InjectionScript outlookErrorPageFallback = InjectionScript(
+    js: '''
+      (function() {
+        console.log('Outlook: Error page fallback monitor starting');
+        
+        let fallbackExecuted = false;
+        
+        function checkForErrorPage() {
+          if (fallbackExecuted) return;
+          
+          try {
+            const pageText = document.body.textContent || '';
+            const pageHTML = document.body.innerHTML || '';
+            
+            // Check for German error message from screenshot:
+            // "Fehler" and "Sie sind nicht autorisiert, auf diese Website zuzugreifen"
+            const hasErrorTitle = pageText.includes('Fehler');
+            const hasPermissionError = pageText.includes('Sie sind nicht autorisiert') || 
+                                      pageText.includes('nicht autorisiert');
+            const hasAccessError = pageText.includes('auf diese Website zuzugreifen');
+            
+            // Also check for English variants
+            const hasEnglishError = pageText.includes('You don\\'t have access') ||
+                                   pageText.includes('not authorized') ||
+                                   pageText.includes('Access Denied');
+            
+            if ((hasErrorTitle && hasPermissionError) || 
+                (hasPermissionError && hasAccessError) ||
+                hasEnglishError) {
+              console.log('Outlook: ⚠️ Permission error page detected!');
+              console.log('Outlook: Executing fallback - navigating back twice');
+              
+              fallbackExecuted = true;
+              
+              // Navigate back twice (as user suggested)
+              setTimeout(() => {
+                console.log('Outlook: First back navigation');
+                window.history.back();
+                
+                setTimeout(() => {
+                  console.log('Outlook: Second back navigation');
+                  window.history.back();
+                }, 1000);
+              }, 500);
+            }
+          } catch (error) {
+            console.error('Outlook: Error page check failed:', error);
+          }
+        }
+        
+        // Check immediately
+        checkForErrorPage();
+        
+        // Check again after short delay (page might still be loading)
+        setTimeout(checkForErrorPage, 1000);
+        setTimeout(checkForErrorPage, 2000);
+        
+        // Set up periodic check for the first 10 seconds
+        let checkCount = 0;
+        const intervalId = setInterval(() => {
+          checkCount++;
+          checkForErrorPage();
+          
+          if (checkCount >= 5 || fallbackExecuted) {
+            clearInterval(intervalId);
+          }
+        }, 2000);
+      })();
+    ''',
+    delay: 0,
+    description: 'Monitor for Outlook permission error page and auto-navigate back twice',
+  );
+
   /// Get post-load script for app (e.g., dialog dismissal)
   /// This runs BEFORE credential injection
   static InjectionScript? getPostLoadScriptForApp(String appId) {
@@ -1012,6 +1087,9 @@ class InjectionScripts {
       
       case 'schulcloud':
         return schulcloudCookieBackupInjection; // Backup/restore cookies to localStorage
+      
+      case 'outlook':
+        return outlookErrorPageFallback; // Auto-navigate back on permission error page
       
       default:
         return null;
