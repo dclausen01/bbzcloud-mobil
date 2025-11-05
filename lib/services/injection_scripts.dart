@@ -1024,14 +1024,16 @@ class InjectionScripts {
     description: 'Backup sessionStorage + cookies to localStorage for session persistence',
   );
 
-  /// Outlook error page fallback - Auto-navigate back twice when permission error appears
+  /// Outlook error page fallback - Reload standard URL when permission error appears
   /// This handles the "Sie sind nicht autorisiert" error that sometimes appears after login
+  /// Since user is already logged in, reloading the standard URL should work
   static const InjectionScript outlookErrorPageFallback = InjectionScript(
     js: '''
       (function() {
         console.log('Outlook: Error page fallback monitor starting');
         
         let fallbackExecuted = false;
+        const OUTLOOK_STANDARD_URL = 'https://exchange.bbz-rd-eck.de/owa/#path=/mail';
         
         function checkForErrorPage() {
           if (fallbackExecuted) return;
@@ -1056,19 +1058,15 @@ class InjectionScripts {
                 (hasPermissionError && hasAccessError) ||
                 hasEnglishError) {
               console.log('Outlook: ⚠️ Permission error page detected!');
-              console.log('Outlook: Executing fallback - navigating back twice');
+              console.log('Outlook: Executing fallback - reloading standard URL');
+              console.log('Outlook: Target URL:', OUTLOOK_STANDARD_URL);
               
               fallbackExecuted = true;
               
-              // Navigate back twice (as user suggested)
+              // Reload standard Outlook URL (user is already logged in)
               setTimeout(() => {
-                console.log('Outlook: First back navigation');
-                window.history.back();
-                
-                setTimeout(() => {
-                  console.log('Outlook: Second back navigation');
-                  window.history.back();
-                }, 1000);
+                console.log('Outlook: Loading standard URL');
+                window.location.href = OUTLOOK_STANDARD_URL;
               }, 500);
             }
           } catch (error) {
@@ -1096,7 +1094,7 @@ class InjectionScripts {
       })();
     ''',
     delay: 0,
-    description: 'Monitor for Outlook permission error page and auto-navigate back twice',
+    description: 'Monitor for Outlook permission error page and reload standard URL',
   );
 
   /// Get post-load script for app (e.g., dialog dismissal)
