@@ -105,6 +105,7 @@ class StorageKeys {
   // Secure credentials
   static const credentialEmail = 'email';
   static const credentialPassword = 'password';
+  static const credentialSecurityPassword = 'securityPassword';
   static const credentialBbbPassword = 'bbbPassword';
   static const credentialWebuntisEmail = 'webuntisEmail';
   static const credentialWebuntisPassword = 'webuntisPassword';

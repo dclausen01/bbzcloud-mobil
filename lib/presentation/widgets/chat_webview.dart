@@ -16,10 +16,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:bbzcloud_mobil/core/constants/app_config.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
+import 'package:bbzcloud_mobil/core/utils/platform_utils.dart';
 import 'package:bbzcloud_mobil/data/services/chat_auth_service.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
+import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
 import 'package:bbzcloud_mobil/services/chat_bridge.dart';
 
 class ChatWebView extends ConsumerStatefulWidget {
@@ -35,6 +39,7 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
   double _progress = 0;
   bool _failed = false;
   String? _error;
+  bool _showAppSwitcher = false;
 
   // Avoid replaying setToken / setTheme on every minor reload.
   bool _tokenPushed = false;
@@ -67,7 +72,13 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       }
     });
 
+    // StackFit.expand: forces the InAppWebView (non-Positioned child) to
+    // fill the available bounds. Without it the WebView reports an
+    // ambiguous intrinsic height which produces a white strip at the top
+    // that the chat content can scroll under – classic flutter_inappwebview
+    // gotcha when nested inside a Stack.
     return Stack(
+      fit: StackFit.expand,
       children: [
         InAppWebView(
           initialUrlRequest: URLRequest(url: WebUri(AppConfig.chatUrl)),
@@ -149,6 +160,35 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
               backgroundColor: Colors.transparent,
             ),
           ),
+
+        // Phone-only: same draggable overlay button that the other
+        // WebView apps already use, for visual consistency.
+        // Tap → AppSwitcherOverlay (jump to another app).
+        // Long-press → open the side drawer (settings, todos, …).
+        if (!PlatformUtils.isTablet(context))
+          DraggableOverlayButton(
+            onTap: () => setState(() => _showAppSwitcher = true),
+            onLongPress: () => Scaffold.maybeOf(context)?.openDrawer(),
+          ),
+
+        if (_showAppSwitcher)
+          AppSwitcherOverlay(
+            onAppSelected: (id, title, url, requiresAuth) {
+              setState(() => _showAppSwitcher = false);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => WebViewScreen(
+                    appId: id,
+                    title: title,
+                    url: url,
+                    requiresAuth: requiresAuth,
+                  ),
+                ),
+              );
+            },
+            onClose: () => setState(() => _showAppSwitcher = false),
+          ),
+
         if (_failed) _ErrorOverlay(message: _error, onRetry: _retry),
       ],
     );
@@ -201,10 +241,14 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       return null;
     }
 
+    final securityPassword = await creds.loadSecurityPassword();
+
     try {
       final token = await ChatAuthService.instance.mobileLogin(
         email: email,
         password: password,
+        securityPassword:
+            securityPassword?.isNotEmpty == true ? securityPassword : password,
       );
       await creds.saveChatMobileToken(token);
       return token;

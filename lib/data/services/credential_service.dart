@@ -42,6 +42,13 @@ class CredentialService {
       );
     }
 
+    if (credentials.securityPassword != null) {
+      await _storage.write(
+        key: StorageKeys.credentialSecurityPassword,
+        value: credentials.securityPassword,
+      );
+    }
+
     if (credentials.bbbPassword != null) {
       await _storage.write(
         key: StorageKeys.credentialBbbPassword,
@@ -116,6 +123,9 @@ class CredentialService {
   Future<Credentials> loadCredentials() async {
     final email = await _storage.read(key: StorageKeys.credentialEmail);
     final password = await _storage.read(key: StorageKeys.credentialPassword);
+    final securityPassword = await _storage.read(
+      key: StorageKeys.credentialSecurityPassword,
+    );
     final bbbPassword = await _storage.read(
       key: StorageKeys.credentialBbbPassword,
     );
@@ -129,10 +139,16 @@ class CredentialService {
     return Credentials(
       email: email,
       password: password,
+      securityPassword: securityPassword,
       bbbPassword: bbbPassword,
       webuntisEmail: webuntisEmail,
       webuntisPassword: webuntisPassword,
     );
+  }
+
+  /// Load security (encryption) password used for the chat E2E vault.
+  Future<String?> loadSecurityPassword() async {
+    return _storage.read(key: StorageKeys.credentialSecurityPassword);
   }
 
   /// Load email only
@@ -173,6 +189,7 @@ class CredentialService {
   Future<void> deleteAllCredentials() async {
     await _storage.delete(key: StorageKeys.credentialEmail);
     await _storage.delete(key: StorageKeys.credentialPassword);
+    await _storage.delete(key: StorageKeys.credentialSecurityPassword);
     await _storage.delete(key: StorageKeys.credentialBbbPassword);
     await _storage.delete(key: StorageKeys.credentialWebuntisEmail);
     await _storage.delete(key: StorageKeys.credentialWebuntisPassword);

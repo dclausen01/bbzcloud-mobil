@@ -1,10 +1,11 @@
 /// BBZCloud Mobile - Credentials Model
-/// 
+///
 /// @version 0.1.0
 
 class Credentials {
   final String? email;
   final String? password;
+  final String? securityPassword;
   final String? bbbPassword;
   final String? webuntisEmail;
   final String? webuntisPassword;
@@ -12,6 +13,7 @@ class Credentials {
   const Credentials({
     this.email,
     this.password,
+    this.securityPassword,
     this.bbbPassword,
     this.webuntisEmail,
     this.webuntisPassword,
@@ -21,15 +23,16 @@ class Credentials {
   bool get hasBasicCredentials => email != null && email!.isNotEmpty;
 
   /// Check if all main credentials are set
-  bool get hasAllCredentials => 
-      hasBasicCredentials && 
-      password != null && 
+  bool get hasAllCredentials =>
+      hasBasicCredentials &&
+      password != null &&
       password!.isNotEmpty;
 
   /// Copy with method for immutability
   Credentials copyWith({
     String? email,
     String? password,
+    String? securityPassword,
     String? bbbPassword,
     String? webuntisEmail,
     String? webuntisPassword,
@@ -37,6 +40,7 @@ class Credentials {
     return Credentials(
       email: email ?? this.email,
       password: password ?? this.password,
+      securityPassword: securityPassword ?? this.securityPassword,
       bbbPassword: bbbPassword ?? this.bbbPassword,
       webuntisEmail: webuntisEmail ?? this.webuntisEmail,
       webuntisPassword: webuntisPassword ?? this.webuntisPassword,
@@ -60,6 +64,7 @@ class Credentials {
     return other is Credentials &&
         other.email == email &&
         other.password == password &&
+        other.securityPassword == securityPassword &&
         other.bbbPassword == bbbPassword &&
         other.webuntisEmail == webuntisEmail &&
         other.webuntisPassword == webuntisPassword;
@@ -69,6 +74,7 @@ class Credentials {
   int get hashCode {
     return email.hashCode ^
         password.hashCode ^
+        securityPassword.hashCode ^
         bbbPassword.hashCode ^
         webuntisEmail.hashCode ^
         webuntisPassword.hashCode;

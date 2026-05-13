@@ -85,16 +85,9 @@ class NavigationApps {
   NavigationApps._();
 
   static final Map<String, AppItem> apps = {
-    'schulcloud': const AppItem(
-      id: 'schulcloud',
-      title: 'schul.cloud',
-      url: AppUrls.schulcloud,
-      icon: Icons.cloud,
-      color: Color(0xFFFFA500),
-      description: 'Chat & Dateiablage',
-      requiresAuth: true,
-      orderIndex: 1,
-    ),
+    // schul.cloud wurde durch den integrierten stashcat-chat ersetzt
+    // (siehe ChatHomeScreen). Sie ist daher nicht mehr Teil der
+    // Apps-Seitenleiste.
     'moodle': AppItem(
       id: 'moodle',
       title: 'Moodle',
@@ -196,7 +189,6 @@ class NavigationApps {
 
   /// Apps that students can access
   static const List<String> studentAllowedApps = [
-    'schulcloud',
     'moodle',
     'cryptpad',
     'webuntis',
