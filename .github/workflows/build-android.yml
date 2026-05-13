@@ -25,6 +25,13 @@ jobs:
           distribution: "zulu"
           java-version: "17"
 
+      - name: Restore google-services.json
+        run: |
+          mkdir -p android/app
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
+          # Optional: sanity-check, dass es valides JSON ist
+          python3 -m json.tool android/app/google-services.json > /dev/null
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:

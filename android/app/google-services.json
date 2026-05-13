@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "118726252203",
+    "project_id": "bbzcloudmobil",
+    "storage_bucket": "bbzcloudmobil.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118726252203:android:9a0c7742eee443f9cd89ee",
+        "android_client_info": {
+          "package_name": "com.bbzcloud.bbzcloud_mobil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcKQO_q5Ahb5Yxh2uhGNd1gAWp5e8LlYM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
