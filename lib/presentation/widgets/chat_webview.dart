@@ -10,6 +10,8 @@
 /// download forwarding, app switcher overlay etc. – everything is handled
 /// inside the React app via the bridge.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +27,7 @@ import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
 import 'package:bbzcloud_mobil/services/chat_bridge.dart';
+import 'package:bbzcloud_mobil/services/push_service.dart';
 
 class ChatWebView extends ConsumerStatefulWidget {
   const ChatWebView({super.key});
@@ -206,6 +209,11 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       if (token != null && token.isNotEmpty) {
         await b.setToken(token);
         _tokenPushed = true;
+
+        // Nach erfolgreichem SSO auch sicherstellen, dass der FCM-Token
+        // serverseitig registriert ist. Bei Returning-Usern ist das der
+        // einzige Trigger – das Welcome-Onboarding läuft nur einmal.
+        unawaited(PushService.instance.requestPermissionAndRegister());
       }
     }
 

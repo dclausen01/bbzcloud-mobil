@@ -18,6 +18,7 @@ import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/chat_auth_service.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
+import 'package:bbzcloud_mobil/services/push_service.dart';
 
 typedef OnLogoutCallback = Future<void> Function();
 
@@ -197,8 +198,15 @@ class ChatBridge {
 
 /// Shared logout routine that is invoked both from the JS bridge and from
 /// the Flutter side (e.g. settings screen "abmelden"). It revokes the
-/// mobile token on the server and wipes local storage.
+/// mobile token on the server and wipes local storage. The push token is
+/// invalidated *before* the mobile token because the unregister call
+/// needs the bearer token for auth.
 Future<void> performChatLogout() async {
+  try {
+    await PushService.instance.unregister();
+  } catch (e) {
+    logger.warning('Push unregister failed: $e');
+  }
   final token = await CredentialService.instance.loadChatMobileToken();
   if (token != null && token.isNotEmpty) {
     await ChatAuthService.instance.mobileLogout(token);

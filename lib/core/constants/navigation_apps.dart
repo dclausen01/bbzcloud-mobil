@@ -74,10 +74,13 @@ class AppUrls {
   static const String taskcards = 'https://bbzrdeck.taskcards.app';
 
   // Administrative tools
-  static const String webuntis = 'https://neilo.webuntis.com/WebUntis/?school=bbz-rd-eck#/basic/login';
+  static const String webuntis = 'https://bbz-rd-eck.webuntis.com/WebUntis/?school=bbz-rd-eck#/basic/login';
   static const String fobizz = 'https://tools.fobizz.com/';
   static const String wiki = 'https://wiki.bbz-rd-eck.com';
   static const String antraege = 'https://dms.bbz-rd-eck.de/';
+
+  // Storage
+  static const String nextcloud = 'https://cloud.bbz-rd-eck.de';
 }
 
 /// Navigation Apps
@@ -185,6 +188,16 @@ class NavigationApps {
       teacherOnly: true,
       orderIndex: 10,
     ),
+    'nextcloud': const AppItem(
+      id: 'nextcloud',
+      title: 'Nextcloud',
+      url: AppUrls.nextcloud,
+      icon: Icons.cloud_outlined,
+      color: Color(0xFF0082C9),
+      description: 'Cloud-Speicher',
+      requiresAuth: true,
+      orderIndex: 11,
+    ),
   };
 
   /// Apps that students can access
@@ -193,6 +206,7 @@ class NavigationApps {
     'cryptpad',
     'webuntis',
     'wiki',
+    'nextcloud',
   ];
 
   /// Get apps filtered by user role
