@@ -11,6 +11,7 @@ import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
+import 'package:bbzcloud_mobil/services/chat_bridge.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/credentials_dialog.dart';
@@ -258,6 +259,11 @@ class SettingsScreen extends ConsumerWidget {
                   child: CircularProgressIndicator(),
                 ),
               );
+
+              // Invalidate the chat mobile token server-side before
+              // wiping local storage. Errors are swallowed inside
+              // performChatLogout – local cleanup happens unconditionally.
+              await performChatLogout();
 
               // Delete all data
               await DatabaseService.instance.deleteDatabase();

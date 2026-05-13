@@ -15,6 +15,7 @@ import 'package:bbzcloud_mobil/core/utils/platform_utils.dart';
 import 'package:bbzcloud_mobil/core/constants/navigation_apps.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
+import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/apps_manage_screen.dart';
@@ -73,6 +74,7 @@ class AppDrawer extends ConsumerWidget {
                 ),
                 title: 'Chat',
                 selected: isChatActive,
+                trailing: const _ChatUnreadPill(),
                 onTap: () {
                   if (isTablet) {
                     ref.read(tabletWebViewProvider.notifier).clearWebView();
@@ -302,12 +304,14 @@ class _NavTile extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.selected = false,
+    this.trailing,
   });
 
   final Widget leading;
   final String title;
   final VoidCallback onTap;
   final bool selected;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -319,8 +323,36 @@ class _NavTile extends StatelessWidget {
           fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
+      trailing: trailing,
       selected: selected,
       onTap: onTap,
+    );
+  }
+}
+
+class _ChatUnreadPill extends ConsumerWidget {
+  const _ChatUnreadPill();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(chatUnreadProvider);
+    if (unread <= 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 18),
+      child: Text(
+        unread > 99 ? '99+' : '$unread',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 }

@@ -203,4 +203,21 @@ class CredentialService {
   Future<Map<String, String>> readAll() async {
     return await _storage.readAll();
   }
+
+  // ============================================================================
+  // CHAT MOBILE TOKEN
+  // ============================================================================
+
+  /// Save the long-lived mobile token returned by /api/auth/mobile-login.
+  Future<void> saveChatMobileToken(String token) async {
+    await _storage.write(key: StorageKeys.chatMobileToken, value: token);
+  }
+
+  Future<String?> loadChatMobileToken() async {
+    return _storage.read(key: StorageKeys.chatMobileToken);
+  }
+
+  Future<void> deleteChatMobileToken() async {
+    await _storage.delete(key: StorageKeys.chatMobileToken);
+  }
 }

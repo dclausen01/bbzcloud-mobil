@@ -1,21 +1,21 @@
 /// BBZCloud Mobile - Chat Home Screen
 ///
-/// Replaces the old apps-grid home. The stashcat-chat WebView is now the
-/// primary surface; navigation to other apps happens exclusively through the
-/// side drawer (phone) or permanent sidebar (tablet).
+/// The stashcat-chat WebView is the primary surface. App-switching
+/// happens through the drawer (phone) or permanent sidebar (tablet).
 ///
 /// See docs/STASHCAT_CHAT_INTEGRATION.md for the bridge contract.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:bbzcloud_mobil/core/constants/app_config.dart';
 import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/utils/platform_utils.dart';
+import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/welcome_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/chat_webview.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/embedded_webview_widget.dart';
 
 class ChatHomeScreen extends ConsumerWidget {
@@ -28,10 +28,7 @@ class ChatHomeScreen extends ConsumerWidget {
 
     return userState.when(
       data: (user) {
-        if (user == null) {
-          // No user yet → fall back to onboarding.
-          return const WelcomeScreen();
-        }
+        if (user == null) return const WelcomeScreen();
         return isTablet ? _buildTablet(context, ref) : _buildPhone(context);
       },
       loading: () => const Scaffold(
@@ -49,9 +46,9 @@ class ChatHomeScreen extends ConsumerWidget {
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text(AppStrings.appTitle),
+        title: const _ChatAppBarTitle(),
       ),
-      body: const _ChatWebView(),
+      body: const ChatWebView(),
     );
   }
 
@@ -63,18 +60,8 @@ class ChatHomeScreen extends ConsumerWidget {
     return Scaffold(
       body: Row(
         children: [
-          // Permanent sidebar – the AppDrawer used as a side panel.
-          SizedBox(
-            width: 300,
-            child: const AppDrawer(),
-          ),
-          // Vertical divider
-          VerticalDivider(
-            width: 1,
-            color: Theme.of(context).dividerColor,
-          ),
-          // Main content: chat by default, or an embedded app WebView when
-          // the user picks one from the sidebar.
+          const SizedBox(width: 300, child: AppDrawer()),
+          VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
           Expanded(
             child: activeWebView.hasWebView
                 ? EmbeddedWebViewWidget(
@@ -89,7 +76,7 @@ class ChatHomeScreen extends ConsumerWidget {
                         .read(tabletWebViewProvider.notifier)
                         .clearWebView(),
                   )
-                : const _ChatWebView(),
+                : const _TabletChatPane(),
           ),
         ],
       ),
@@ -97,25 +84,65 @@ class ChatHomeScreen extends ConsumerWidget {
   }
 }
 
-/// The actual chat WebView. Wrapped so we can later attach the JS bridge,
-/// theme sync and push deeplink handling without touching the host screen.
-class _ChatWebView extends StatelessWidget {
-  const _ChatWebView();
+class _TabletChatPane extends StatelessWidget {
+  const _TabletChatPane();
 
   @override
   Widget build(BuildContext context) {
-    return const EmbeddedWebViewWidget(
-      appId: AppConfig.chatAppId,
-      title: 'Chat',
-      url: AppConfig.chatUrl,
-      // The chat handles its own auth via the upcoming mobile-bridge SSO
-      // (Phase 2). No legacy injection scripts.
-      requiresAuth: false,
-      // We render our own AppBar on phones; on tablets the chat lives inside
-      // the body of the host Scaffold, so we hide the embedded chrome here.
-      showAppBar: false,
-      // The chat is an SPA – no back/forward/refresh bottom bar.
-      showBottomBar: false,
+    return Column(
+      children: [
+        AppBar(
+          title: const _ChatAppBarTitle(),
+          automaticallyImplyLeading: false,
+        ),
+        const Expanded(child: ChatWebView()),
+      ],
+    );
+  }
+}
+
+/// AppBar title with live unread badge fed by the JS bridge.
+class _ChatAppBarTitle extends ConsumerWidget {
+  const _ChatAppBarTitle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(chatUnreadProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(AppStrings.appTitle),
+        if (unread > 0) ...[
+          const SizedBox(width: 8),
+          _UnreadBadge(count: unread),
+        ],
+      ],
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 18),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 }
