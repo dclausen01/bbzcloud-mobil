@@ -9,7 +9,7 @@ import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
-import 'package:bbzcloud_mobil/presentation/screens/home_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/chat_home_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/welcome_screen.dart';
 
 void main() async {
@@ -62,9 +62,9 @@ class BBZCloudApp extends ConsumerWidget {
       
       // Home - Show loading, welcome or home screen
       home: settingsAsync.when(
-        data: (settings) => settings.isFirstLaunch 
-            ? const WelcomeScreen() 
-            : const HomeScreen(),
+        data: (settings) => settings.isFirstLaunch
+            ? const WelcomeScreen()
+            : const ChatHomeScreen(),
         loading: () => const Scaffold(
           body: Center(
             child: CircularProgressIndicator(),
