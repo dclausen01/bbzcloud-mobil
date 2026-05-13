@@ -16,6 +16,7 @@ import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
+import 'package:bbzcloud_mobil/services/push_service.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
@@ -447,6 +448,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 : password,
           );
           await CredentialService.instance.saveChatMobileToken(token);
+
+          // Frage gleich Push-Berechtigung an und registriere den
+          // FCM-Token serverseitig (best-effort).
+          await PushService.instance.requestPermissionAndRegister();
         } catch (e) {
           logger.warning('Mobile-Login während Onboarding übersprungen: $e');
         }

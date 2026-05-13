@@ -104,4 +104,62 @@ class ChatAuthService {
       logger.warning('mobile-logout swallowed error: $e');
     }
   }
+
+  // -- Push tokens ---------------------------------------------------------
+
+  /// Registers (or refreshes) an FCM/APNs token for this account. The
+  /// server stores it together with the user id, platform and
+  /// app version so the push dispatcher can target the right devices.
+  Future<void> registerPushToken({
+    required String mobileToken,
+    required String pushToken,
+    required String platform,
+    String? appVersion,
+    String? locale,
+  }) async {
+    try {
+      final res = await _client
+          .post(
+            _u('/api/push-tokens'),
+            headers: {
+              'Authorization': 'Bearer $mobileToken',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'token': pushToken,
+              'platform': platform,
+              if (appVersion != null) 'appVersion': appVersion,
+              if (locale != null) 'locale': locale,
+            }),
+          )
+          .timeout(_timeout);
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        logger.warning(
+            'push-token register HTTP ${res.statusCode}: ${res.body}');
+      }
+    } catch (e) {
+      logger.warning('push-token register swallowed error: $e');
+    }
+  }
+
+  /// Unregisters a push token (best-effort).
+  Future<void> unregisterPushToken({
+    required String mobileToken,
+    required String pushToken,
+  }) async {
+    try {
+      await _client
+          .delete(
+            _u('/api/push-tokens/${Uri.encodeComponent(pushToken)}'),
+            headers: {
+              'Authorization': 'Bearer $mobileToken',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(_timeout);
+    } catch (e) {
+      logger.warning('push-token unregister swallowed error: $e');
+    }
+  }
 }

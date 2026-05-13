@@ -1,32 +1,52 @@
 /// BBZCloud Mobile - Main Entry Point
-/// 
+///
 /// @version 0.1.0
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/chat_home_screen.dart';
 import 'package:bbzcloud_mobil/presentation/screens/welcome_screen.dart';
+import 'package:bbzcloud_mobil/services/push_service.dart';
 
 void main() async {
-  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize database before starting the app
+
+  // Initialize database before starting the app.
   try {
     await DatabaseService.instance.database;
-    print('✅ Database initialized successfully');
+    debugPrint('✅ Database initialized successfully');
   } catch (e) {
-    print('❌ Database initialization error: $e');
+    debugPrint('❌ Database initialization error: $e');
   }
-  
+
+  // Firebase – swallows initialization errors so the app still boots
+  // when google-services.json is missing (e.g. on web/desktop dev).
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init failed (continuing without push): $e');
+  }
+
+  // Shared ProviderContainer so PushService can push state into the same
+  // Riverpod scope the UI watches.
+  final container = ProviderContainer();
+  try {
+    await PushService.instance.init(container);
+  } catch (e) {
+    debugPrint('PushService init failed: $e');
+  }
+
   runApp(
-    const ProviderScope(
-      child: BBZCloudApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const BBZCloudApp(),
     ),
   );
 }
@@ -42,7 +62,7 @@ class BBZCloudApp extends ConsumerWidget {
     return MaterialApp(
       title: AppStrings.appTitle,
       debugShowCheckedModeBanner: false,
-      
+
       // Localization
       locale: const Locale('de', 'DE'),
       supportedLocales: const [
@@ -54,12 +74,12 @@ class BBZCloudApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      
+
       // Theme
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      
+
       // Home - Show loading, welcome or home screen
       home: settingsAsync.when(
         data: (settings) => settings.isFirstLaunch
