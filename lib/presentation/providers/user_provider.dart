@@ -23,18 +23,22 @@ class UserNotifier extends StateNotifier<AsyncValue<User?>> {
 
   /// Load current user from database
   Future<void> _loadUser() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
-    
+
     try {
       final user = await _database.getCurrentUser();
+      if (!mounted) return;
       state = AsyncValue.data(user);
     } catch (error, stackTrace) {
+      if (!mounted) return;
       state = AsyncValue.error(error, stackTrace);
     }
   }
 
   /// Save or update user
   Future<void> saveUser(User user) async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
     try {
       await _database.saveUser(user);
@@ -43,6 +47,7 @@ class UserNotifier extends StateNotifier<AsyncValue<User?>> {
       logger.info('User saved and reloaded successfully');
     } catch (error, stackTrace) {
       logger.error('Failed to save user', error, stackTrace);
+      if (!mounted) return;
       state = AsyncValue.error(error, stackTrace);
     }
   }
