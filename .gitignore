@@ -61,5 +61,10 @@ android/fastlane/README.md
 play-store-service-account.json
 google-play-api-key.json
 
+# Firebase configuration (provided per-environment via CI secrets)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+ios/firebase_app_id_file.json
+
 # Empty Flutter directory (causes GitHub Pages issues)
 flutter/
