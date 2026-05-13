@@ -25,6 +25,15 @@ class AppConfig {
   static const bool showTitle = true;
   static const bool enableShare = true;
   static const bool enableReaderMode = false;
+
+  // Chat (stashcat-chat) – becomes the new home screen.
+  // Hosted centrally on the BBZ infrastructure; the `?bridge=mobile`
+  // flag puts the React client into mobile mode (siehe
+  // docs/STASHCAT_CHAT_INTEGRATION.md).
+  static const String chatBaseUrl = 'https://chat.bbz-rd-eck.com';
+  static const String chatBridgeQuery = '?bridge=mobile';
+  static const String chatUrl = '$chatBaseUrl/$chatBridgeQuery';
+  static const String chatAppId = 'bbz_chat';
 }
 
 /// User Roles
