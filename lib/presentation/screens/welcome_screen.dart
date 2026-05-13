@@ -28,13 +28,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController(); // Changed from _emailController
   final _passwordController = TextEditingController();
+  final _securityPasswordController = TextEditingController();
   final _bbbPasswordController = TextEditingController();
   final _webuntisEmailController = TextEditingController();
   final _webuntisPasswordController = TextEditingController();
-  
+
   UserRole _selectedRole = UserRole.student;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureSecurityPassword = true;
   bool _obscureBbbPassword = true;
   bool _obscureWebuntisPassword = true;
   bool _saveCredentials = true;
@@ -43,6 +45,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   void dispose() {
     _usernameController.dispose(); // Changed from _emailController
     _passwordController.dispose();
+    _securityPasswordController.dispose();
     _bbbPasswordController.dispose();
     _webuntisEmailController.dispose();
     _webuntisPasswordController.dispose();
@@ -203,6 +206,32 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           onPressed: () {
                             setState(() {
                               _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextFormField(
+                      controller: _securityPasswordController,
+                      obscureText: _obscureSecurityPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Verschlüsselungskennwort',
+                        hintText: 'für E2E-Chat (häufig identisch zum Passwort)',
+                        prefixIcon: const Icon(Icons.shield_outlined),
+                        helperText:
+                            'Wird vom Chat zum Entschlüsseln der Nachrichten benötigt.',
+                        helperMaxLines: 2,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureSecurityPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureSecurityPassword =
+                                  !_obscureSecurityPassword;
                             });
                           },
                         ),
@@ -389,16 +418,20 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
       // Save credentials if provided and checkbox is checked
       if (password.isNotEmpty && _saveCredentials) {
+        final securityPassword = _securityPasswordController.text;
         final bbbPassword = _bbbPasswordController.text.trim();
         final webuntisEmail = _webuntisEmailController.text.trim();
         final webuntisPassword = _webuntisPasswordController.text.trim();
-        
+
         final credentials = Credentials(
           email: email,
           password: password,
+          securityPassword:
+              securityPassword.isNotEmpty ? securityPassword : password,
           bbbPassword: bbbPassword.isNotEmpty ? bbbPassword : password,
           webuntisEmail: webuntisEmail.isNotEmpty ? webuntisEmail : null,
-          webuntisPassword: webuntisPassword.isNotEmpty ? webuntisPassword : password,
+          webuntisPassword:
+              webuntisPassword.isNotEmpty ? webuntisPassword : password,
         );
         await CredentialService.instance.saveCredentials(credentials);
 
@@ -409,6 +442,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
           final token = await ChatAuthService.instance.mobileLogin(
             email: email,
             password: password,
+            securityPassword: securityPassword.isNotEmpty
+                ? securityPassword
+                : password,
           );
           await CredentialService.instance.saveChatMobileToken(token);
         } catch (e) {

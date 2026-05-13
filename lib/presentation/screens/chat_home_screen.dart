@@ -41,14 +41,22 @@ class ChatHomeScreen extends ConsumerWidget {
   }
 
   // -- Phone -----------------------------------------------------------------
-
+  //
+  // Phone is full-bleed chat. Navigation happens through the draggable
+  // overlay button rendered by ChatWebView – tap shows the app switcher,
+  // long-press opens the side drawer (settings, todos, manage apps).
+  // No AppBar; the chat renders its own header inside the WebView.
   Widget _buildPhone(BuildContext context) {
     return Scaffold(
       drawer: const AppDrawer(),
-      appBar: AppBar(
-        title: const _ChatAppBarTitle(),
+      body: const SafeArea(
+        top: true,
+        // The React chat sets padding-bottom via env(safe-area-inset-
+        // bottom), so we skip the bottom inset here to avoid double
+        // padding on devices with home indicators.
+        bottom: false,
+        child: ChatWebView(),
       ),
-      body: const ChatWebView(),
     );
   }
 
