@@ -108,4 +108,7 @@ class StorageKeys {
   static const credentialBbbPassword = 'bbbPassword';
   static const credentialWebuntisEmail = 'webuntisEmail';
   static const credentialWebuntisPassword = 'webuntisPassword';
+
+  // Chat (mobile bridge SSO)
+  static const chatMobileToken = 'chat_mobile_token';
 }

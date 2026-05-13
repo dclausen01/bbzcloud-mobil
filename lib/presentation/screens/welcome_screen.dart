@@ -11,7 +11,9 @@ import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/models/user.dart';
 import 'package:bbzcloud_mobil/data/models/credentials.dart';
+import 'package:bbzcloud_mobil/data/services/chat_auth_service.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
+import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 
@@ -399,6 +401,19 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
           webuntisPassword: webuntisPassword.isNotEmpty ? webuntisPassword : password,
         );
         await CredentialService.instance.saveCredentials(credentials);
+
+        // Best-effort: hole gleich beim Onboarding den Mobile-Bridge-Token,
+        // damit der Chat beim ersten Öffnen ohne weiteren Login startet.
+        // Fehlschläge sind ok – die Chat-Login-Seite springt dann ein.
+        try {
+          final token = await ChatAuthService.instance.mobileLogin(
+            email: email,
+            password: password,
+          );
+          await CredentialService.instance.saveChatMobileToken(token);
+        } catch (e) {
+          logger.warning('Mobile-Login während Onboarding übersprungen: $e');
+        }
       }
 
       // Mark first launch as complete
