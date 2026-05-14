@@ -212,5 +212,4 @@ Future<void> performChatLogout() async {
     await ChatAuthService.instance.mobileLogout(token);
   }
   await CredentialService.instance.deleteChatMobileToken();
-  await CredentialService.instance.deleteChatSessionToken();
 }

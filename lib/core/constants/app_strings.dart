@@ -115,7 +115,4 @@ class StorageKeys {
 
   // Chat (mobile bridge SSO)
   static const chatMobileToken = 'chat_mobile_token';
-  // Stashcat-Session-Token aus mobile-login. Wird fuer /api/push-tokens
-  // benoetigt, weil das (noch) auf der alten Stashcat-Session-Auth haengt.
-  static const chatSessionToken = 'chat_session_token';
 }
