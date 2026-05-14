@@ -143,9 +143,13 @@ class PushService {
       }
 
       _currentToken = await FirebaseMessaging.instance.getToken();
-      logger.info(
-          'FCM token: ${_currentToken == null ? "<null>" : "${_currentToken!.substring(0, 16)}…(len=${_currentToken!.length})"}');
-      if (_currentToken != null) {
+      if (_currentToken == null) {
+        logger.warning('FCM getToken() returned null');
+      } else {
+        // Vollständiger Token in den App-internen Log-Buffer – im
+        // Logcat sind die Strings sowieso schon zu lang. Über
+        // Einstellungen → Logs lässt er sich kopieren.
+        logger.info('FCM token (len=${_currentToken!.length}): $_currentToken');
         await _registerCurrentToken();
       }
     } catch (e, st) {

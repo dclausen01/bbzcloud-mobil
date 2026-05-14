@@ -14,6 +14,7 @@ import 'package:bbzcloud_mobil/data/services/database_service.dart';
 import 'package:bbzcloud_mobil/services/chat_bridge.dart';
 import 'package:bbzcloud_mobil/presentation/providers/user_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
+import 'package:bbzcloud_mobil/presentation/screens/log_viewer_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/credentials_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -231,6 +232,20 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               _showCredentialsDialog(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('Logs anzeigen'),
+            subtitle: const Text('App-Diagnose (Push, Login, …)'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LogViewerScreen(),
+                ),
+              );
             },
           ),
           ListTile(
