@@ -28,6 +28,7 @@
         android:label="BBZ Cloud"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="true">
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

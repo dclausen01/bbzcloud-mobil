@@ -14,22 +14,30 @@ import 'package:bbzcloud_mobil/data/services/database_service.dart';
 class SettingsState {
   final AppThemeMode theme;
   final bool isFirstLaunch;
+  final int webviewZoom; // Prozentwert: 80..200
 
   const SettingsState({
     required this.theme,
     required this.isFirstLaunch,
+    required this.webviewZoom,
   });
 
   SettingsState copyWith({
     AppThemeMode? theme,
     bool? isFirstLaunch,
+    int? webviewZoom,
   }) {
     return SettingsState(
       theme: theme ?? this.theme,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
+      webviewZoom: webviewZoom ?? this.webviewZoom,
     );
   }
 }
+
+const int kDefaultWebviewZoom = 110;
+const int kMinWebviewZoom = 80;
+const int kMaxWebviewZoom = 200;
 
 /// Settings provider
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AsyncValue<SettingsState>>((ref) {
@@ -52,10 +60,13 @@ class SettingsNotifier extends StateNotifier<AsyncValue<SettingsState>> {
       
       final themeValue = settings[StorageKeys.theme] ?? AppThemeMode.system.value;
       final isFirstLaunch = settings[StorageKeys.isFirstLaunch] != 'false';
-      
+      final zoom = int.tryParse(settings[StorageKeys.webviewZoom] ?? '') ??
+          kDefaultWebviewZoom;
+
       state = AsyncValue.data(SettingsState(
         theme: AppThemeMode.fromString(themeValue),
         isFirstLaunch: isFirstLaunch,
+        webviewZoom: zoom.clamp(kMinWebviewZoom, kMaxWebviewZoom),
       ));
     } catch (error, stackTrace) {
       // If error, provide defaults
@@ -70,6 +81,19 @@ class SettingsNotifier extends StateNotifier<AsyncValue<SettingsState>> {
       
       state.whenData((currentState) {
         state = AsyncValue.data(currentState.copyWith(theme: theme));
+      });
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  /// Set WebView zoom (Prozent)
+  Future<void> setWebviewZoom(int zoom) async {
+    final clamped = zoom.clamp(kMinWebviewZoom, kMaxWebviewZoom);
+    try {
+      await _database.saveSetting(StorageKeys.webviewZoom, '$clamped');
+      state.whenData((current) {
+        state = AsyncValue.data(current.copyWith(webviewZoom: clamped));
       });
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
@@ -111,6 +135,15 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
       }
     },
     orElse: () => ThemeMode.system,
+  );
+});
+
+/// WebView Zoom (Prozent, 80..200). Default 110.
+final webviewZoomProvider = Provider<int>((ref) {
+  final s = ref.watch(settingsProvider);
+  return s.maybeWhen(
+    data: (settings) => settings.webviewZoom,
+    orElse: () => kDefaultWebviewZoom,
   );
 });
 

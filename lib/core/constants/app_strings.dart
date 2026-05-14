@@ -66,6 +66,8 @@ class AppStrings {
   static const account = 'Konto';
   static const about = 'Über';
   static const version = 'Version';
+  static const webviewZoom = 'Zoomstufe';
+  static const webviewZoomHint = 'Schriftgröße und Bedienelemente in allen Apps';
 
   // Apps
   static const allApps = 'Alle Apps';
@@ -101,6 +103,7 @@ class StorageKeys {
   static const theme = 'theme';
   static const appVisibility = 'app_visibility';
   static const favoriteApps = 'favorite_apps';
+  static const webviewZoom = 'webview_zoom';
 
   // Secure credentials
   static const credentialEmail = 'email';
