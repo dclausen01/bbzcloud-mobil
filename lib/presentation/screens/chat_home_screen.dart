@@ -17,6 +17,7 @@ import 'package:bbzcloud_mobil/presentation/screens/welcome_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_drawer.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/chat_webview.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/embedded_webview_widget.dart';
+import 'package:bbzcloud_mobil/presentation/widgets/offline_banner.dart';
 
 class ChatHomeScreen extends ConsumerWidget {
   const ChatHomeScreen({super.key});
@@ -55,7 +56,17 @@ class ChatHomeScreen extends ConsumerWidget {
         // bottom), so we skip the bottom inset here to avoid double
         // padding on devices with home indicators.
         bottom: false,
-        child: ChatWebView(),
+        child: Stack(
+          children: [
+            Positioned.fill(child: ChatWebView()),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: OfflineBanner(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -106,6 +117,7 @@ class _TabletChatPane extends StatelessWidget {
           title: const _ChatAppBarTitle(),
           automaticallyImplyLeading: false,
         ),
+        const OfflineBanner(),
         const Expanded(child: ChatWebView()),
       ],
     );
