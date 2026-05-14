@@ -161,11 +161,11 @@ class PushService {
   /// locally. Called from performChatLogout.
   Future<void> unregister() async {
     final token = _currentToken;
-    final mobileToken =
-        await CredentialService.instance.loadChatMobileToken();
-    if (token != null && mobileToken != null && mobileToken.isNotEmpty) {
+    final sessionToken =
+        await CredentialService.instance.loadChatSessionToken();
+    if (token != null && sessionToken != null && sessionToken.isNotEmpty) {
       await ChatAuthService.instance.unregisterPushToken(
-        mobileToken: mobileToken,
+        mobileToken: sessionToken,
         pushToken: token,
       );
     }
@@ -183,16 +183,19 @@ class PushService {
       logger.warning('Skip push register – no FCM token.');
       return;
     }
-    final mobileToken =
-        await CredentialService.instance.loadChatMobileToken();
-    if (mobileToken == null || mobileToken.isEmpty) {
+    // /api/push-tokens haengt aktuell noch an der alten Stashcat-Session-
+    // Auth – wir muessen das `sessionToken` aus mobile-login als Bearer
+    // schicken, nicht den `mobileToken`.
+    final sessionToken =
+        await CredentialService.instance.loadChatSessionToken();
+    if (sessionToken == null || sessionToken.isEmpty) {
       logger.warning(
-          'Skip push register – no mobile token yet. Will retry on next chat login.');
+          'Skip push register – no chat session token yet. Will retry on next chat login.');
       return;
     }
     logger.info('Registering push token with chat server…');
     final ok = await ChatAuthService.instance.registerPushToken(
-      mobileToken: mobileToken,
+      mobileToken: sessionToken,
       pushToken: pushToken,
       platform: Platform.isIOS ? 'ios' : 'android',
     );
@@ -201,15 +204,13 @@ class PushService {
       return;
     }
 
-    // 401 / 4xx → das gecachte Token ist ungueltig (z.B. ein altes
-    // Schul.cloud-Session-Token aus einem fruehen Build). Cache leeren,
+    // 401 / 4xx → Session-Token ungueltig oder abgelaufen. Cache leeren,
     // damit der naechste Chat-Boot eine frische mobile-login-Runde
     // ausloest.
     logger.warning(
         'Push token NOT registered – server rejected. '
-        'Invalidating cached mobile token. App reload empfohlen, '
-        'damit /api/auth/mobile-login neu gerufen wird.');
-    await CredentialService.instance.deleteChatMobileToken();
+        'Invalidating cached session token.');
+    await CredentialService.instance.deleteChatSessionToken();
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

@@ -25,6 +25,23 @@ class ChatAuthException implements Exception {
   String toString() => 'ChatAuthException($statusCode): $message';
 }
 
+/// Antwort von `/api/auth/mobile-login`.
+///
+/// Der Server liefert ZWEI Tokens:
+/// - `mobileToken` (64-Hex) – fuer die neue Mobile-Bridge-Auth
+///   (wird per `window.bbzChat.setToken()` an den React-Client gegeben).
+/// - `sessionToken` (Stashcat-Format mit Doppelpunkten) – fuer Endpoints,
+///   die intern noch die alte Stashcat-Session-Auth nutzen, allen voran
+///   `/api/push-tokens`.
+class MobileLoginResult {
+  const MobileLoginResult({
+    required this.mobileToken,
+    required this.sessionToken,
+  });
+  final String mobileToken;
+  final String sessionToken;
+}
+
 class ChatAuthService {
   ChatAuthService._({http.Client? client}) : _client = client ?? http.Client();
 
@@ -36,12 +53,12 @@ class ChatAuthService {
 
   Uri _u(String path) => Uri.parse('${AppConfig.chatBaseUrl}$path');
 
-  /// Calls `/api/auth/mobile-login`. Returns the long-lived mobile token.
+  /// Calls `/api/auth/mobile-login`. Returns both Tokens.
   ///
   /// [securityPassword] is the optional E2E password (defaults to [password]
   /// if the BBZ-Account uses the same secret; pass null to let the server
   /// decide / prompt later).
-  Future<String> mobileLogin({
+  Future<MobileLoginResult> mobileLogin({
     required String email,
     required String password,
     String? securityPassword,
@@ -80,11 +97,15 @@ class ChatAuthService {
       throw ChatAuthException('Antwort konnte nicht gelesen werden: $e');
     }
 
-    final token = json['mobileToken'];
-    if (token is! String || token.isEmpty) {
+    final mt = json['mobileToken'];
+    final st = json['token'];
+    if (mt is! String || mt.isEmpty) {
       throw ChatAuthException('Antwort ohne mobileToken');
     }
-    return token;
+    if (st is! String || st.isEmpty) {
+      throw ChatAuthException('Antwort ohne token (session)');
+    }
+    return MobileLoginResult(mobileToken: mt, sessionToken: st);
   }
 
   /// Best-effort logout. Errors are swallowed because the local token is

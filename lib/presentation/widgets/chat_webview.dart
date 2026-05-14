@@ -471,16 +471,22 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
 
       if (sessionToken != null && sessionToken.isNotEmpty) {
         _tokenPushed = true;
-        // WICHTIG: Den schulchat_token NICHT als chat_mobile_token cachen –
-        // das hat /api/push-tokens mit 401 "Invalid token format" abgelehnt,
-        // weil der Endpoint einen echten mobileToken erwartet (64 Hex-Zeichen,
-        // AES-Blob), nicht ein Session-Token im ab1b…:141b… Format.
-        //
-        // Statt dessen: jetzt noch dediziert /api/auth/mobile-login ausserhalb
-        // der WebView aufrufen. Das hat zwar nichts mit dem WebView-Login zu
-        // tun (der ist schon erledigt), aber wir brauchen das Token fuer
-        // Push-Registrierung.
-        await _fetchAndStoreMobileToken();
+        // Der WebView-interne /api/login Direct-Flow gibt uns das Session-
+        // Token - das ist genau das gleiche Token-Format wie das `token`-
+        // Feld von /api/auth/mobile-login. /api/push-tokens akzeptiert das.
+        await CredentialService.instance.saveChatSessionToken(sessionToken);
+        // Trotzdem rufen wir mobile-login noch separat auf, damit wir den
+        // 64-hex mobileToken bekommen (wird zukuenftig - nach Server-Fix -
+        // fuer push-tokens benoetigt; bis dahin nutzen wir das Session-
+        // Token, das wir hier eh schon haben). _fetchAndStoreMobileToken
+        // triggert auch die Push-Registrierung. Falls es fehlschlaegt,
+        // registrieren wir Push einfach mit dem Session-Token, das wir
+        // schon haben.
+        try {
+          await _fetchAndStoreMobileToken();
+        } catch (_) {
+          unawaited(PushService.instance.requestPermissionAndRegister());
+        }
 
         if (str.startsWith('OK:')) {
           await c.reload();
@@ -502,14 +508,16 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     if (email == null || password == null || password.isEmpty) return;
     final securityPassword = await creds.loadSecurityPassword();
     try {
-      final token = await ChatAuthService.instance.mobileLogin(
+      final res = await ChatAuthService.instance.mobileLogin(
         email: email,
         password: password,
         securityPassword:
             (securityPassword?.isNotEmpty ?? false) ? securityPassword : password,
       );
-      await creds.saveChatMobileToken(token);
-      logger.info('Mobile token refreshed (len=${token.length})');
+      await creds.saveChatMobileToken(res.mobileToken);
+      await creds.saveChatSessionToken(res.sessionToken);
+      logger.info(
+          'mobile-login OK (mobileToken len=${res.mobileToken.length}, sessionToken len=${res.sessionToken.length})');
       unawaited(PushService.instance.requestPermissionAndRegister());
     } catch (e) {
       logger.warning('mobile-login refresh failed: $e');
@@ -553,14 +561,15 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     final securityPassword = await creds.loadSecurityPassword();
 
     try {
-      final token = await ChatAuthService.instance.mobileLogin(
+      final res = await ChatAuthService.instance.mobileLogin(
         email: email,
         password: password,
         securityPassword:
             securityPassword?.isNotEmpty == true ? securityPassword : password,
       );
-      await creds.saveChatMobileToken(token);
-      return token;
+      await creds.saveChatMobileToken(res.mobileToken);
+      await creds.saveChatSessionToken(res.sessionToken);
+      return res.mobileToken;
     } catch (e) {
       logger.warning('Auto mobile-login failed: $e');
       return null;

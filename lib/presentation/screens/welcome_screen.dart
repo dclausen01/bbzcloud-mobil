@@ -440,14 +440,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         // damit der Chat beim ersten Öffnen ohne weiteren Login startet.
         // Fehlschläge sind ok – die Chat-Login-Seite springt dann ein.
         try {
-          final token = await ChatAuthService.instance.mobileLogin(
+          final res = await ChatAuthService.instance.mobileLogin(
             email: email,
             password: password,
             securityPassword: securityPassword.isNotEmpty
                 ? securityPassword
                 : password,
           );
-          await CredentialService.instance.saveChatMobileToken(token);
+          await CredentialService.instance.saveChatMobileToken(res.mobileToken);
+          await CredentialService.instance.saveChatSessionToken(res.sessionToken);
 
           // Frage gleich Push-Berechtigung an und registriere den
           // FCM-Token serverseitig (best-effort).
