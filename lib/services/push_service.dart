@@ -198,10 +198,18 @@ class PushService {
     );
     if (ok) {
       logger.info('Push token registered with chat server.');
-    } else {
-      logger.warning(
-          'Push token NOT registered – server rejected. Pushes will not arrive.');
+      return;
     }
+
+    // 401 / 4xx → das gecachte Token ist ungueltig (z.B. ein altes
+    // Schul.cloud-Session-Token aus einem fruehen Build). Cache leeren,
+    // damit der naechste Chat-Boot eine frische mobile-login-Runde
+    // ausloest.
+    logger.warning(
+        'Push token NOT registered – server rejected. '
+        'Invalidating cached mobile token. App reload empfohlen, '
+        'damit /api/auth/mobile-login neu gerufen wird.');
+    await CredentialService.instance.deleteChatMobileToken();
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
