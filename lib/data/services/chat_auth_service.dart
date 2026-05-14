@@ -120,6 +120,12 @@ class ChatAuthService {
     String? locale,
   }) async {
     final endpoint = _u('/api/push-tokens');
+    // Damit man im Log direkt sieht, welche Form das Bearer-Token hat
+    // (mobileToken-Hex vs. Stashcat-Session-Token mit ":"-Trennzeichen):
+    final preview = mobileToken.length > 20
+        ? '${mobileToken.substring(0, 12)}…${mobileToken.substring(mobileToken.length - 4)} (len=${mobileToken.length}, hasColon=${mobileToken.contains(':')})'
+        : '$mobileToken (len=${mobileToken.length})';
+    logger.info('push-token register Bearer: $preview');
     try {
       final res = await _client
           .post(
