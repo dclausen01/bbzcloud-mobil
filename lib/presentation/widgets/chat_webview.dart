@@ -14,8 +14,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 import 'package:bbzcloud_mobil/core/constants/app_config.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
@@ -49,12 +51,6 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
   bool _tokenPushed = false;
   ThemeMode? _lastTheme;
 
-  // Aktuell bekannter `canGoBack`-Wert des WebViews. Wir aktualisieren
-  // den Wert bei jedem onUpdateVisitedHistory/onLoadStop, damit PopScope
-  // synchron entscheiden kann, ob ein Back-Gesture verbraucht oder
-  // an das System weitergegeben wird.
-  bool _webCanGoBack = false;
-
   @override
   Widget build(BuildContext context) {
     // Theme sync: whenever the resolved ThemeMode changes, forward it to
@@ -73,6 +69,11 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       }
     });
 
+    // Zoom-Setting: Auf Wertänderung den WebView neu skalieren.
+    ref.listen<int>(webviewZoomProvider, (prev, next) {
+      _applyZoom(next);
+    });
+
     // The React app fires `bridgeReady` from its very first useEffect.
     // Whichever happens first – onLoadStop or bridgeReady – we want to
     // push the initial state (token + theme) exactly once.
@@ -87,12 +88,11 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     // ambiguous intrinsic height which produces a white strip at the top
     // that the chat content can scroll under – classic flutter_inappwebview
     // gotcha when nested inside a Stack.
-    final canBeIntercepted = _showAppSwitcher || _webCanGoBack;
     return PopScope(
-      // canPop=false → wir intercepten Back. Wenn nichts zu intercepten ist
-      // (Chat-Startseite, kein Overlay), lassen wir den Pop durch, sodass
-      // Android die App regulär in den Hintergrund legt.
-      canPop: !canBeIntercepted,
+      // canPop=false → wir interceptn IMMER. So funktioniert auch die
+      // Edge-Swipe-Geste (Android 13+ Predictive Back, dafür braucht es
+      // android:enableOnBackInvokedCallback="true" im Manifest).
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (_showAppSwitcher) {
@@ -102,7 +102,11 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
         final c = _controller;
         if (c != null && await c.canGoBack()) {
           await c.goBack();
+          return;
         }
+        // Auf der Chat-Startseite: App in den Hintergrund legen,
+        // statt sie zu schließen.
+        await SystemNavigator.pop();
       },
       child: Stack(
         fit: StackFit.expand,
@@ -118,10 +122,9 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
             thirdPartyCookiesEnabled: true,
             cacheEnabled: true,
             supportZoom: false,
-            // 110 % macht Schrift und Symbole gut lesbar, ohne dass das
-            // Layout bricht. Wert kann via /chat/setTextZoom auf Wunsch
-            // weiter erhöht werden, falls jemand mehr braucht.
-            textZoom: 110,
+            // Initial-Zoom aus Settings (Default 110%). Änderungen
+            // werden zur Laufzeit via _applyZoom() reingedrückt.
+            textZoom: ref.read(webviewZoomProvider),
             // Transparent background prevents the white strip that the
             // platform draws while the React app boots.
             transparentBackground: true,
@@ -132,8 +135,11 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
             allowsInlineMediaPlayback: true,
           ),
           onPermissionRequest: (controller, request) async {
-            // Auto-grant camera/microphone for the chat domain – the
-            // user already trusted us by installing the app.
+            // Bevor wir dem WebView GRANT zurückgeben, müssen die
+            // App-Level-Permissions auf OS-Ebene tatsächlich vorhanden
+            // sein – sonst nutzt unser GRANT nichts und getUserMedia()
+            // schlägt fehl ("Mikrofonzugriff verweigert").
+            await _ensureMediaPermissions(request.resources);
             return PermissionResponse(
               resources: request.resources,
               action: PermissionResponseAction.GRANT,
@@ -165,10 +171,6 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           onLoadStop: (controller, url) async {
             if (mounted) setState(() => _progress = 1);
             await _injectInitialBridgeState();
-            await _refreshCanGoBack();
-          },
-          onUpdateVisitedHistory: (controller, url, androidIsReload) async {
-            await _refreshCanGoBack();
           },
           onReceivedError: (controller, request, error) {
             logger.warning(
@@ -294,16 +296,41 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     await _pushTheme(mode, force: true);
   }
 
-  Future<void> _refreshCanGoBack() async {
+  /// Fordert die Android/iOS-System-Permissions an, die vom WebView
+  /// als nächstes verwendet werden sollen.
+  Future<void> _ensureMediaPermissions(
+      List<PermissionResourceType> resources) async {
+    final toRequest = <ph.Permission>{};
+    for (final r in resources) {
+      final id = r.toString().toUpperCase();
+      if (id.contains('AUDIO') || id.contains('MICROPHONE')) {
+        toRequest.add(ph.Permission.microphone);
+      }
+      if (id.contains('VIDEO') || id.contains('CAMERA')) {
+        toRequest.add(ph.Permission.camera);
+      }
+    }
+    for (final p in toRequest) {
+      try {
+        final status = await p.status;
+        if (!status.isGranted) {
+          await p.request();
+        }
+      } catch (e) {
+        logger.warning('Permission request failed for $p: $e');
+      }
+    }
+  }
+
+  Future<void> _applyZoom(int zoom) async {
     final c = _controller;
     if (c == null) return;
     try {
-      final canBack = await c.canGoBack();
-      if (mounted && canBack != _webCanGoBack) {
-        setState(() => _webCanGoBack = canBack);
-      }
-    } catch (_) {
-      // ignore
+      await c.setSettings(
+        settings: InAppWebViewSettings(textZoom: zoom),
+      );
+    } catch (e) {
+      logger.warning('Chat applyZoom failed: $e');
     }
   }
 

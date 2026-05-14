@@ -10,11 +10,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/services/injection_scripts.dart';
 import 'package:bbzcloud_mobil/services/download_service.dart';
+import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
@@ -80,6 +82,17 @@ class _EmbeddedWebViewWidgetState
 
   @override
   Widget build(BuildContext context) {
+    // Zoom-Setting live übernehmen.
+    ref.listen<int>(webviewZoomProvider, (prev, next) async {
+      final c = _webViewController;
+      if (c == null) return;
+      try {
+        await c.setSettings(settings: InAppWebViewSettings(textZoom: next));
+      } catch (e) {
+        logger.warning('Embedded WebView applyZoom failed: $e');
+      }
+    });
+
     return Column(
       children: [
         // Optional AppBar
@@ -109,6 +122,7 @@ class _EmbeddedWebViewWidgetState
                   allowUniversalAccessFromFileURLs: false,
                   userAgent: _getUserAgentForApp(widget.appId),
                   initialScale: _getInitialScaleForApp(widget.appId),
+                  textZoom: ref.read(webviewZoomProvider),
                   thirdPartyCookiesEnabled: true,
                   cacheEnabled: true,
                   clearCache: false,
@@ -121,8 +135,9 @@ class _EmbeddedWebViewWidgetState
                   allowsInlineMediaPlayback: true,
                 ),
                 onPermissionRequest: (controller, request) async {
-                  // BBZ-Apps dürfen Kamera/Mikrofon nutzen, ohne dass
-                  // der WebView jedes Mal nachfragt.
+                  // Erst OS-Permission holen (RECORD_AUDIO/CAMERA), dann
+                  // den WebView grant'en.
+                  await _ensureMediaPermissions(request.resources);
                   return PermissionResponse(
                     resources: request.resources,
                     action: PermissionResponseAction.GRANT,
@@ -479,6 +494,30 @@ class _EmbeddedWebViewWidgetState
           _canGoBack = canGoBack;
           _canGoForward = canGoForward;
         });
+      }
+    }
+  }
+
+  Future<void> _ensureMediaPermissions(
+      List<PermissionResourceType> resources) async {
+    final toRequest = <ph.Permission>{};
+    for (final r in resources) {
+      final id = r.toString().toUpperCase();
+      if (id.contains('AUDIO') || id.contains('MICROPHONE')) {
+        toRequest.add(ph.Permission.microphone);
+      }
+      if (id.contains('VIDEO') || id.contains('CAMERA')) {
+        toRequest.add(ph.Permission.camera);
+      }
+    }
+    for (final p in toRequest) {
+      try {
+        final status = await p.status;
+        if (!status.isGranted) {
+          await p.request();
+        }
+      } catch (e) {
+        logger.warning('Permission request failed for $p: $e');
       }
     }
   }

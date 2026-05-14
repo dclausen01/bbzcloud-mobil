@@ -47,6 +47,10 @@ class SettingsScreen extends ConsumerWidget {
                 _buildThemeSection(context, ref, settings.theme),
                 const Divider(),
 
+                // Zoom Section
+                _buildZoomSection(context, ref, settings.webviewZoom),
+                const Divider(),
+
                 // Account Section
                 _buildAccountSection(context, ref, user),
                 const Divider(),
@@ -147,6 +151,60 @@ class SettingsScreen extends ConsumerWidget {
                 ref.read(settingsProvider.notifier).setTheme(value);
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildZoomSection(BuildContext context, WidgetRef ref, int zoom) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.webviewZoom,
+            style: AppTextStyles.heading3.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            AppStrings.webviewZoomHint,
+            style: AppTextStyles.body2.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Text('$kMinWebviewZoom %', style: AppTextStyles.caption),
+              Expanded(
+                child: Slider(
+                  min: kMinWebviewZoom.toDouble(),
+                  max: kMaxWebviewZoom.toDouble(),
+                  divisions: (kMaxWebviewZoom - kMinWebviewZoom) ~/ 10,
+                  value: zoom.toDouble(),
+                  label: '$zoom %',
+                  onChanged: (v) {
+                    ref
+                        .read(settingsProvider.notifier)
+                        .setWebviewZoom(v.round());
+                  },
+                ),
+              ),
+              Text('$kMaxWebviewZoom %', style: AppTextStyles.caption),
+            ],
+          ),
+          Align(
+            alignment: Alignment.center,
+            child: Text(
+              'Aktuell: $zoom %',
+              style: AppTextStyles.body1.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
