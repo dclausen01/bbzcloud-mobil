@@ -249,6 +249,14 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Chat-Abmeldung'),
+            subtitle: const Text(
+                'Mobile-Token und Push-Registrierung serverseitig widerrufen'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showChatLogoutDialog(context, ref),
+          ),
+          ListTile(
             leading: Icon(
               Icons.delete_outline,
               color: Theme.of(context).colorScheme.error,
@@ -302,6 +310,53 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => const CredentialsDialog(),
+    );
+  }
+
+  void _showChatLogoutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Vom Chat abmelden?'),
+        content: const Text(
+          'Der Mobile-Bridge-Token wird serverseitig widerrufen und die '
+          'Push-Registrierung entfernt. Beim nächsten Öffnen des Chats '
+          'wird ein neuer Auto-Login durchgeführt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(AppStrings.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) =>
+                    const Center(child: CircularProgressIndicator()),
+              );
+              try {
+                await performChatLogout();
+              } catch (_) {
+                // performChatLogout schluckt eigene Fehler – hier nur
+                // Defensiv.
+              }
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Chat-Abmeldung abgeschlossen'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: const Text('Abmelden'),
+          ),
+        ],
+      ),
     );
   }
 

@@ -8,7 +8,9 @@
 /// through `evaluateJavascript`.
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,9 +121,81 @@ class ChatBridge {
     controller.addJavaScriptHandler(
       handlerName: 'pickFiles',
       callback: (args) async {
-        // Phase 4 – returns an empty list until the native picker is wired
-        // up.
-        return <String>[];
+        // args[0] kann ein Optionsobjekt sein. Aktuell unterstuetzte
+        // Felder: { allowMultiple: bool, type: 'image' | 'video' | 'any' }
+        bool allowMultiple = true;
+        FileType fileType = FileType.any;
+        if (args.isNotEmpty && args.first is Map) {
+          final opts = (args.first as Map).cast<String, dynamic>();
+          allowMultiple = opts['allowMultiple'] != false;
+          switch (opts['type']?.toString()) {
+            case 'image':
+              fileType = FileType.image;
+              break;
+            case 'video':
+              fileType = FileType.video;
+              break;
+            case 'audio':
+              fileType = FileType.audio;
+              break;
+            default:
+              fileType = FileType.any;
+          }
+        }
+
+        try {
+          final result = await FilePicker.platform.pickFiles(
+            type: fileType,
+            allowMultiple: allowMultiple,
+            withData: false,
+            // Wir liefern Pfade an JS - die React-Seite kann sie via
+            // fetch('file://…') NICHT lesen (WebView-Security). Das ist
+            // Absicht: der eigentliche Upload-Pfad laeuft ueber
+            // window.bbzChat.attachFiles(...) im Frontend, das die
+            // Pfade von uns entgegennimmt und dann via Bridge die Bytes
+            // anfordert. Bis das frontend-seitig implementiert ist,
+            // liefern wir die file:// URIs und laesst React den Rest
+            // entscheiden.
+          );
+          if (result == null || result.files.isEmpty) {
+            return <String>[];
+          }
+          return result.files
+              .map((f) => f.path)
+              .whereType<String>()
+              .map((p) => Uri.file(p).toString())
+              .toList();
+        } catch (e) {
+          logger.warning('pickFiles failed: $e');
+          return <String>[];
+        }
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'readFile',
+      callback: (args) async {
+        // Liest eine vorher per pickFiles ausgewaehlte Datei als
+        // base64. Damit kann der React-Code die Bytes in einen Blob
+        // verwandeln und per fetch() hochladen. Args: [fileUri:string]
+        if (args.isEmpty) return null;
+        final raw = args.first?.toString() ?? '';
+        if (raw.isEmpty) return null;
+        try {
+          final uri = Uri.parse(raw);
+          final path = uri.scheme == 'file' ? uri.toFilePath() : raw;
+          final file = File(path);
+          if (!await file.exists()) return null;
+          final bytes = await file.readAsBytes();
+          return {
+            'name': path.split('/').last,
+            'size': bytes.length,
+            'base64': base64Encode(bytes),
+          };
+        } catch (e) {
+          logger.warning('readFile failed: $e');
+          return null;
+        }
       },
     );
   }
