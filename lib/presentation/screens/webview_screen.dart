@@ -355,6 +355,13 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
                 });
                 _switchToApp(id, title, url, requiresAuth);
               },
+              onJumpToChat: () {
+                setState(() {
+                  _showAppSwitcher = false;
+                });
+                ref.read(webViewStackProvider.notifier).clearCurrent();
+                Navigator.of(context).popUntil((r) => r.isFirst);
+              },
               onClose: () {
                 setState(() {
                   _showAppSwitcher = false;

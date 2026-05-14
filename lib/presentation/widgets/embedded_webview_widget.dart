@@ -115,7 +115,19 @@ class _EmbeddedWebViewWidgetState
                   incognito: false,
                   disableContextMenu: false,
                   supportZoom: true,
+                  // Voice/Video für BBB, Jitsi etc. ohne Extra-Dialog.
+                  iframeAllow: 'camera; microphone',
+                  iframeAllowFullscreen: true,
+                  allowsInlineMediaPlayback: true,
                 ),
+                onPermissionRequest: (controller, request) async {
+                  // BBZ-Apps dürfen Kamera/Mikrofon nutzen, ohne dass
+                  // der WebView jedes Mal nachfragt.
+                  return PermissionResponse(
+                    resources: request.resources,
+                    action: PermissionResponseAction.GRANT,
+                  );
+                },
                 onWebViewCreated: (controller) {
                   _webViewController = controller;
 
@@ -242,6 +254,18 @@ class _EmbeddedWebViewWidgetState
                       _showAppSwitcher = false;
                     });
                     _switchToApp(id, title, url, requiresAuth);
+                  },
+                  onJumpToChat: () {
+                    setState(() {
+                      _showAppSwitcher = false;
+                    });
+                    ref.read(webViewStackProvider.notifier).clearCurrent();
+                    if (widget.onHomePressed != null) {
+                      // Tablet: trigger embedded "home"
+                      widget.onHomePressed!();
+                    } else {
+                      Navigator.of(context).popUntil((r) => r.isFirst);
+                    }
                   },
                   onClose: () {
                     setState(() {
