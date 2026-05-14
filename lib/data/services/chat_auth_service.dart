@@ -117,10 +117,11 @@ class ChatAuthService {
     String? appVersion,
     String? locale,
   }) async {
+    final endpoint = _u('/api/push-tokens');
     try {
       final res = await _client
           .post(
-            _u('/api/push-tokens'),
+            endpoint,
             headers: {
               'Authorization': 'Bearer $mobileToken',
               'Content-Type': 'application/json',
@@ -134,12 +135,15 @@ class ChatAuthService {
             }),
           )
           .timeout(_timeout);
-      if (res.statusCode != 200 && res.statusCode != 201) {
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        logger.info(
+            'push-token register OK (HTTP ${res.statusCode}) → $endpoint');
+      } else {
         logger.warning(
             'push-token register HTTP ${res.statusCode}: ${res.body}');
       }
     } catch (e) {
-      logger.warning('push-token register swallowed error: $e');
+      logger.warning('push-token register error ($endpoint): $e');
     }
   }
 

@@ -401,6 +401,8 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
 
   /// Direkter Auto-Login wie in BBZ Cloud 2: ruft `/api/login` aus
   /// dem WebView-Kontext heraus auf, speichert das Token und reloaded.
+  /// Holt zusätzlich das Token zurück nach Flutter, damit wir es als
+  /// Bearer für /api/push-tokens benutzen können.
   Future<void> _injectDirectChatLogin() async {
     final c = _controller;
     if (c == null) return;
@@ -415,6 +417,12 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
             : password;
 
     try {
+      // Rückgabewerte:
+      //   "ALREADY:<token>"  – schon eingeloggt, Token aus localStorage
+      //   "OK:<token>"       – frisch eingeloggt
+      //   "HTTP_<status>"    – API-Fehler
+      //   "NO_TOKEN"         – Response ohne Token
+      //   "ERR:<msg>"        – Exception
       final result = await c.evaluateJavascript(source: '''
         (async function() {
           try {
@@ -424,10 +432,10 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
                 const r = await fetch('/api/me', {
                   headers: { 'Authorization': 'Bearer ' + existing }
                 });
-                if (r.ok) return 'ALREADY';
+                if (r.ok) return 'ALREADY:' + existing;
                 localStorage.removeItem('schulchat_token');
               } catch (e) {
-                return 'ALREADY'; // network: trust token
+                return 'ALREADY:' + existing; // network: trust token
               }
             }
             const res = await fetch('/api/login', {
@@ -443,7 +451,7 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
             const data = await res.json();
             if (data && data.token) {
               localStorage.setItem('schulchat_token', data.token);
-              return 'OK';
+              return 'OK:' + data.token;
             }
             return 'NO_TOKEN';
           } catch (e) {
@@ -451,13 +459,30 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           }
         })()
       ''');
-      logger.info('Chat direct-login result: $result');
-      if (result == 'OK') {
+      final str = result?.toString() ?? '';
+      logger.info('Chat direct-login result: ${str.startsWith('OK:') || str.startsWith('ALREADY:') ? str.substring(0, str.indexOf(':') + 1) + '<token>' : str}');
+
+      String? sessionToken;
+      if (str.startsWith('OK:')) {
+        sessionToken = str.substring(3);
+      } else if (str.startsWith('ALREADY:')) {
+        sessionToken = str.substring(8);
+      }
+
+      if (sessionToken != null && sessionToken.isNotEmpty) {
         _tokenPushed = true;
-        // Auch lokal cachen, damit der nächste Start direkt klappt.
-        await c.reload();
-      } else if (result == 'ALREADY') {
-        _tokenPushed = true;
+        // Als "mobileToken" cachen – BBZ-Chat akzeptiert dieses Token
+        // als Bearer für die selben Endpunkte, die mobile-login zurueck-
+        // gibt (gleicher Auth-Middleware-Stack).
+        await CredentialService.instance.saveChatMobileToken(sessionToken);
+        // Push-Token jetzt registrieren – das war der Bug zuvor:
+        // wenn der direct-login Pfad lief, wurde requestPermissionAndRegister
+        // nie aufgerufen.
+        unawaited(PushService.instance.requestPermissionAndRegister());
+
+        if (str.startsWith('OK:')) {
+          await c.reload();
+        }
       }
     } catch (e) {
       logger.warning('Chat direct-login failed: $e');

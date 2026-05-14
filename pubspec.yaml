@@ -2,7 +2,7 @@ name: bbzcloud_mobil
 description: "BBZ Cloud Mobile - Flutter App für iOS und Android"
 publish_to: 'none'
 
-version: 1.3.0+16
+version: 1.3.0+17
 
 environment:
   sdk: ^3.9.2
