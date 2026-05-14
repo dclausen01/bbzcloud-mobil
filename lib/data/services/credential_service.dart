@@ -237,4 +237,20 @@ class CredentialService {
   Future<void> deleteChatMobileToken() async {
     await _storage.delete(key: StorageKeys.chatMobileToken);
   }
+
+  // ============================================================================
+  // CHAT SESSION TOKEN (Stashcat-Auth – fuer /api/push-tokens)
+  // ============================================================================
+
+  Future<void> saveChatSessionToken(String token) async {
+    await _storage.write(key: StorageKeys.chatSessionToken, value: token);
+  }
+
+  Future<String?> loadChatSessionToken() async {
+    return _storage.read(key: StorageKeys.chatSessionToken);
+  }
+
+  Future<void> deleteChatSessionToken() async {
+    await _storage.delete(key: StorageKeys.chatSessionToken);
+  }
 }
