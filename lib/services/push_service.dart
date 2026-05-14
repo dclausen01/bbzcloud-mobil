@@ -191,12 +191,25 @@ class PushService {
       return;
     }
     logger.info('Registering push token with chat server…');
-    await ChatAuthService.instance.registerPushToken(
+    final ok = await ChatAuthService.instance.registerPushToken(
       mobileToken: mobileToken,
       pushToken: pushToken,
       platform: Platform.isIOS ? 'ios' : 'android',
     );
-    logger.info('Push token registered.');
+    if (ok) {
+      logger.info('Push token registered with chat server.');
+      return;
+    }
+
+    // 401 / 4xx → das gecachte Token ist ungueltig (z.B. ein altes
+    // Schul.cloud-Session-Token aus einem fruehen Build). Cache leeren,
+    // damit der naechste Chat-Boot eine frische mobile-login-Runde
+    // ausloest.
+    logger.warning(
+        'Push token NOT registered – server rejected. '
+        'Invalidating cached mobile token. App reload empfohlen, '
+        'damit /api/auth/mobile-login neu gerufen wird.');
+    await CredentialService.instance.deleteChatMobileToken();
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

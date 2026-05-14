@@ -471,14 +471,16 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
 
       if (sessionToken != null && sessionToken.isNotEmpty) {
         _tokenPushed = true;
-        // Als "mobileToken" cachen – BBZ-Chat akzeptiert dieses Token
-        // als Bearer für die selben Endpunkte, die mobile-login zurueck-
-        // gibt (gleicher Auth-Middleware-Stack).
-        await CredentialService.instance.saveChatMobileToken(sessionToken);
-        // Push-Token jetzt registrieren – das war der Bug zuvor:
-        // wenn der direct-login Pfad lief, wurde requestPermissionAndRegister
-        // nie aufgerufen.
-        unawaited(PushService.instance.requestPermissionAndRegister());
+        // WICHTIG: Den schulchat_token NICHT als chat_mobile_token cachen –
+        // das hat /api/push-tokens mit 401 "Invalid token format" abgelehnt,
+        // weil der Endpoint einen echten mobileToken erwartet (64 Hex-Zeichen,
+        // AES-Blob), nicht ein Session-Token im ab1b…:141b… Format.
+        //
+        // Statt dessen: jetzt noch dediziert /api/auth/mobile-login ausserhalb
+        // der WebView aufrufen. Das hat zwar nichts mit dem WebView-Login zu
+        // tun (der ist schon erledigt), aber wir brauchen das Token fuer
+        // Push-Registrierung.
+        await _fetchAndStoreMobileToken();
 
         if (str.startsWith('OK:')) {
           await c.reload();
@@ -486,6 +488,31 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       }
     } catch (e) {
       logger.warning('Chat direct-login failed: $e');
+    }
+  }
+
+  /// Holt /api/auth/mobile-login und cached den zurueckgegebenen
+  /// `mobileToken`. Wird erst nach erfolgreichem Direct-Login (oder beim
+  /// Boot, wenn das Token im Cache als ungueltig erkannt wurde) aufgerufen.
+  /// Loest danach die Push-Registrierung aus.
+  Future<void> _fetchAndStoreMobileToken() async {
+    final creds = CredentialService.instance;
+    final email = await creds.loadEmail();
+    final password = await creds.loadPassword();
+    if (email == null || password == null || password.isEmpty) return;
+    final securityPassword = await creds.loadSecurityPassword();
+    try {
+      final token = await ChatAuthService.instance.mobileLogin(
+        email: email,
+        password: password,
+        securityPassword:
+            (securityPassword?.isNotEmpty ?? false) ? securityPassword : password,
+      );
+      await creds.saveChatMobileToken(token);
+      logger.info('Mobile token refreshed (len=${token.length})');
+      unawaited(PushService.instance.requestPermissionAndRegister());
+    } catch (e) {
+      logger.warning('mobile-login refresh failed: $e');
     }
   }
 
@@ -507,7 +534,14 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
   Future<String?> _ensureMobileToken() async {
     final creds = CredentialService.instance;
     final cached = await creds.loadChatMobileToken();
-    if (cached != null && cached.isNotEmpty) return cached;
+    if (cached != null && _looksLikeMobileToken(cached)) return cached;
+
+    if (cached != null && cached.isNotEmpty) {
+      // Cache enthielt aelteres Schrott-Token (z.B. ein
+      // schulchat_token, das frueher faelschlich hier abgelegt wurde).
+      logger.info('Discarding cached non-mobile-token (len=${cached.length})');
+      await creds.deleteChatMobileToken();
+    }
 
     final email = await creds.loadEmail();
     final password = await creds.loadPassword();
@@ -531,6 +565,15 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       logger.warning('Auto mobile-login failed: $e');
       return null;
     }
+  }
+
+  /// Heuristik fuer echte mobileToken-Strings (vom Server geliefert):
+  /// 64 hexadezimale Zeichen (AES-256-GCM-blob hex). Session-Tokens
+  /// und Schul.cloud-Tokens enthalten ":" und sind deutlich laenger.
+  static bool _looksLikeMobileToken(String s) {
+    if (s.length != 64) return false;
+    final hex = RegExp(r'^[0-9a-fA-F]+$');
+    return hex.hasMatch(s);
   }
 
   void _retry() {
