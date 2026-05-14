@@ -191,12 +191,17 @@ class PushService {
       return;
     }
     logger.info('Registering push token with chat server…');
-    await ChatAuthService.instance.registerPushToken(
+    final ok = await ChatAuthService.instance.registerPushToken(
       mobileToken: mobileToken,
       pushToken: pushToken,
       platform: Platform.isIOS ? 'ios' : 'android',
     );
-    logger.info('Push token registered.');
+    if (ok) {
+      logger.info('Push token registered with chat server.');
+    } else {
+      logger.warning(
+          'Push token NOT registered – server rejected. Pushes will not arrive.');
+    }
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

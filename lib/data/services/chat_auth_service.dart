@@ -110,7 +110,9 @@ class ChatAuthService {
   /// Registers (or refreshes) an FCM/APNs token for this account. The
   /// server stores it together with the user id, platform and
   /// app version so the push dispatcher can target the right devices.
-  Future<void> registerPushToken({
+  /// Registers (or refreshes) an FCM/APNs token for this account.
+  /// Returns true if the server accepted the token, false otherwise.
+  Future<bool> registerPushToken({
     required String mobileToken,
     required String pushToken,
     required String platform,
@@ -138,12 +140,15 @@ class ChatAuthService {
       if (res.statusCode == 200 || res.statusCode == 201) {
         logger.info(
             'push-token register OK (HTTP ${res.statusCode}) → $endpoint');
+        return true;
       } else {
         logger.warning(
             'push-token register HTTP ${res.statusCode}: ${res.body}');
+        return false;
       }
     } catch (e) {
       logger.warning('push-token register error ($endpoint): $e');
+      return false;
     }
   }
 
