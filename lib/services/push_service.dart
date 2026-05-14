@@ -125,24 +125,35 @@ class PushService {
   /// the FCM token and registers it with the BBZ chat server. Safe to
   /// call multiple times.
   Future<void> requestPermissionAndRegister() async {
-    if (!_initialised) return;
+    if (!_initialised) {
+      logger.warning('PushService not initialised – skip register.');
+      return;
+    }
     try {
       final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
+      logger.info(
+          'Push permission status: ${settings.authorizationStatus}');
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         logger.info('Push permission denied by user.');
         return;
       }
 
       _currentToken = await FirebaseMessaging.instance.getToken();
-      if (_currentToken != null) {
+      if (_currentToken == null) {
+        logger.warning('FCM getToken() returned null');
+      } else {
+        // Vollständiger Token in den App-internen Log-Buffer – im
+        // Logcat sind die Strings sowieso schon zu lang. Über
+        // Einstellungen → Logs lässt er sich kopieren.
+        logger.info('FCM token (len=${_currentToken!.length}): $_currentToken');
         await _registerCurrentToken();
       }
-    } catch (e) {
-      logger.warning('Push permission/register failed: $e');
+    } catch (e, st) {
+      logger.error('Push permission/register failed', e, st);
     }
   }
 
@@ -168,18 +179,24 @@ class PushService {
 
   Future<void> _registerCurrentToken() async {
     final pushToken = _currentToken;
-    if (pushToken == null) return;
+    if (pushToken == null) {
+      logger.warning('Skip push register – no FCM token.');
+      return;
+    }
     final mobileToken =
         await CredentialService.instance.loadChatMobileToken();
     if (mobileToken == null || mobileToken.isEmpty) {
-      logger.info('Skipping push register – no mobile token yet.');
+      logger.warning(
+          'Skip push register – no mobile token yet. Will retry on next chat login.');
       return;
     }
+    logger.info('Registering push token with chat server…');
     await ChatAuthService.instance.registerPushToken(
       mobileToken: mobileToken,
       pushToken: pushToken,
       platform: Platform.isIOS ? 'ios' : 'android',
     );
+    logger.info('Push token registered.');
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
