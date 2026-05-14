@@ -60,6 +60,9 @@ class ChatHomeScreen extends ConsumerWidget {
     );
   }
 
+  // (Back-Navigation: WillPopScope wird in ChatWebView selbst gehandhabt,
+  // damit der Controller dort verfügbar ist.)
+
   // -- Tablet ----------------------------------------------------------------
 
   Widget _buildTablet(BuildContext context, WidgetRef ref) {

@@ -11,6 +11,7 @@
 /// inside the React app via the bridge.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -48,6 +49,12 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
   bool _tokenPushed = false;
   ThemeMode? _lastTheme;
 
+  // Aktuell bekannter `canGoBack`-Wert des WebViews. Wir aktualisieren
+  // den Wert bei jedem onUpdateVisitedHistory/onLoadStop, damit PopScope
+  // synchron entscheiden kann, ob ein Back-Gesture verbraucht oder
+  // an das System weitergegeben wird.
+  bool _webCanGoBack = false;
+
   @override
   Widget build(BuildContext context) {
     // Theme sync: whenever the resolved ThemeMode changes, forward it to
@@ -80,9 +87,26 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     // ambiguous intrinsic height which produces a white strip at the top
     // that the chat content can scroll under – classic flutter_inappwebview
     // gotcha when nested inside a Stack.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
+    final canBeIntercepted = _showAppSwitcher || _webCanGoBack;
+    return PopScope(
+      // canPop=false → wir intercepten Back. Wenn nichts zu intercepten ist
+      // (Chat-Startseite, kein Overlay), lassen wir den Pop durch, sodass
+      // Android die App regulär in den Hintergrund legt.
+      canPop: !canBeIntercepted,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (_showAppSwitcher) {
+          setState(() => _showAppSwitcher = false);
+          return;
+        }
+        final c = _controller;
+        if (c != null && await c.canGoBack()) {
+          await c.goBack();
+        }
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
         InAppWebView(
           initialUrlRequest: URLRequest(url: WebUri(AppConfig.chatUrl)),
           initialSettings: InAppWebViewSettings(
@@ -94,7 +118,27 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
             thirdPartyCookiesEnabled: true,
             cacheEnabled: true,
             supportZoom: false,
+            // 110 % macht Schrift und Symbole gut lesbar, ohne dass das
+            // Layout bricht. Wert kann via /chat/setTextZoom auf Wunsch
+            // weiter erhöht werden, falls jemand mehr braucht.
+            textZoom: 110,
+            // Transparent background prevents the white strip that the
+            // platform draws while the React app boots.
+            transparentBackground: true,
+            // Auto-grant the React app's getUserMedia() requests so dass
+            // Sprachnachrichten und Voice/Video-Calls direkt funktionieren.
+            iframeAllow: 'camera; microphone',
+            iframeAllowFullscreen: true,
+            allowsInlineMediaPlayback: true,
           ),
+          onPermissionRequest: (controller, request) async {
+            // Auto-grant camera/microphone for the chat domain – the
+            // user already trusted us by installing the app.
+            return PermissionResponse(
+              resources: request.resources,
+              action: PermissionResponseAction.GRANT,
+            );
+          },
           onWebViewCreated: (controller) {
             _controller = controller;
             _bridge = ChatBridge(
@@ -121,6 +165,10 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           onLoadStop: (controller, url) async {
             if (mounted) setState(() => _progress = 1);
             await _injectInitialBridgeState();
+            await _refreshCanGoBack();
+          },
+          onUpdateVisitedHistory: (controller, url, androidIsReload) async {
+            await _refreshCanGoBack();
           },
           onReceivedError: (controller, request, error) {
             logger.warning(
@@ -189,11 +237,18 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
                 ),
               );
             },
+            // Chat-Tile auf dem Chat-Screen schließt einfach den Switcher
+            // und scrollt ggf. an den Anfang. onJumpToChat = no-op.
+            onJumpToChat: () {
+              setState(() => _showAppSwitcher = false);
+              _bridge?.navigate('/');
+            },
             onClose: () => setState(() => _showAppSwitcher = false),
           ),
 
         if (_failed) _ErrorOverlay(message: _error, onRetry: _retry),
-      ],
+        ],
+      ),
     );
   }
 
@@ -202,24 +257,184 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     final b = _bridge;
     if (c == null || b == null) return;
 
+    // 0. Viewport / Layout Fix: erzwinge volle Höhe und entferne den
+    //    weißen Streifen, der manchmal entstand, wenn das React-App
+    //    intrinsische Höhe < Viewport meldete.
+    await _applyChatLayoutFix();
+
     // 1. Token-Injection für SSO. Erfolg ist best-effort – ohne Token
     //    zeigt der Chat seinen eigenen Login an, das ist akzeptabel.
     if (!_tokenPushed) {
       final token = await _ensureMobileToken();
       if (token != null && token.isNotEmpty) {
+        // 1a) Bridge-Pfad (neue mobile-session API): setToken().
         await b.setToken(token);
+        // 1b) Fallback-Pfad: Token auch direkt in localStorage als
+        //     `schulchat_token` ablegen. So funktioniert Auto-Login
+        //     selbst dann, wenn die mobile-session-Route im Backend
+        //     noch nicht ausgerollt ist (BBZ Cloud 2 Pattern).
+        await _writeChatLocalStorageToken(token);
         _tokenPushed = true;
 
         // Nach erfolgreichem SSO auch sicherstellen, dass der FCM-Token
         // serverseitig registriert ist. Bei Returning-Usern ist das der
         // einzige Trigger – das Welcome-Onboarding läuft nur einmal.
         unawaited(PushService.instance.requestPermissionAndRegister());
+      } else {
+        // 1c) Letzter Versuch: Falls weder mobile-login noch Bridge-Token
+        //     funktioniert haben, fülle die React-Loginmaske direkt aus,
+        //     wenn wir Credentials haben. Das ist genau das gleiche Pattern,
+        //     das die Desktop-App (BBZ Cloud 2) verwendet.
+        await _injectDirectChatLogin();
       }
     }
 
     // 2. Theme synchron halten – beim ersten Boot reicht ein push.
     final mode = ref.read(themeModeProvider);
     await _pushTheme(mode, force: true);
+  }
+
+  Future<void> _refreshCanGoBack() async {
+    final c = _controller;
+    if (c == null) return;
+    try {
+      final canBack = await c.canGoBack();
+      if (mounted && canBack != _webCanGoBack) {
+        setState(() => _webCanGoBack = canBack);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  /// Drücke einige CSS-Regeln rein, die garantieren, dass der React-Chat
+  /// die volle WebView-Höhe nutzt – egal welche viewport-meta er selbst
+  /// setzt. Behebt den weißen Streifen oben + die Mit-Scrollbarkeit
+  /// der App.
+  Future<void> _applyChatLayoutFix() async {
+    final c = _controller;
+    if (c == null) return;
+    try {
+      await c.evaluateJavascript(source: r'''
+        (function() {
+          // Sicherstellen, dass viewport-meta passt
+          let vp = document.querySelector('meta[name=viewport]');
+          if (!vp) {
+            vp = document.createElement('meta');
+            vp.name = 'viewport';
+            document.head.appendChild(vp);
+          }
+          vp.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no';
+
+          // CSS: html/body auf 100dvh fixieren, Body nicht scrollen.
+          if (!document.getElementById('bbz-chat-layout-fix')) {
+            const s = document.createElement('style');
+            s.id = 'bbz-chat-layout-fix';
+            s.textContent = `
+              html, body {
+                height: 100% !important;
+                min-height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                background-color: var(--app-bg, #ffffff);
+              }
+              body > #root, body > #app, body > .app {
+                min-height: 100dvh !important;
+                height: 100dvh !important;
+              }
+            `;
+            document.head.appendChild(s);
+          }
+        })();
+      ''');
+    } catch (e) {
+      logger.warning('Chat layout fix failed: $e');
+    }
+  }
+
+  /// Schreibt den mobileToken zusätzlich in `localStorage.schulchat_token`,
+  /// damit der React-Chat ihn auch direkt verwenden kann (genau wie
+  /// BBZ Cloud 2). Sicher: läuft ausschließlich auf der Chat-Domain.
+  Future<void> _writeChatLocalStorageToken(String token) async {
+    final c = _controller;
+    if (c == null) return;
+    try {
+      await c.evaluateJavascript(source: '''
+        (function() {
+          try {
+            localStorage.setItem('schulchat_token', ${jsonEncode(token)});
+          } catch (e) {}
+        })();
+      ''');
+    } catch (e) {
+      logger.warning('Chat localStorage token write failed: $e');
+    }
+  }
+
+  /// Direkter Auto-Login wie in BBZ Cloud 2: ruft `/api/login` aus
+  /// dem WebView-Kontext heraus auf, speichert das Token und reloaded.
+  Future<void> _injectDirectChatLogin() async {
+    final c = _controller;
+    if (c == null) return;
+    final creds = CredentialService.instance;
+    final email = await creds.loadEmail();
+    final password = await creds.loadPassword();
+    if (email == null || password == null || password.isEmpty) return;
+    final securityPassword = await creds.loadSecurityPassword();
+    final secPwd =
+        (securityPassword != null && securityPassword.isNotEmpty)
+            ? securityPassword
+            : password;
+
+    try {
+      final result = await c.evaluateJavascript(source: '''
+        (async function() {
+          try {
+            const existing = localStorage.getItem('schulchat_token');
+            if (existing) {
+              try {
+                const r = await fetch('/api/me', {
+                  headers: { 'Authorization': 'Bearer ' + existing }
+                });
+                if (r.ok) return 'ALREADY';
+                localStorage.removeItem('schulchat_token');
+              } catch (e) {
+                return 'ALREADY'; // network: trust token
+              }
+            }
+            const res = await fetch('/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: ${jsonEncode(email)},
+                password: ${jsonEncode(password)},
+                securityPassword: ${jsonEncode(secPwd)}
+              })
+            });
+            if (!res.ok) return 'HTTP_' + res.status;
+            const data = await res.json();
+            if (data && data.token) {
+              localStorage.setItem('schulchat_token', data.token);
+              return 'OK';
+            }
+            return 'NO_TOKEN';
+          } catch (e) {
+            return 'ERR:' + (e && e.message || 'unknown');
+          }
+        })()
+      ''');
+      logger.info('Chat direct-login result: $result');
+      if (result == 'OK') {
+        _tokenPushed = true;
+        // Auch lokal cachen, damit der nächste Start direkt klappt.
+        await c.reload();
+      } else if (result == 'ALREADY') {
+        _tokenPushed = true;
+      }
+    } catch (e) {
+      logger.warning('Chat direct-login failed: $e');
+    }
   }
 
   Future<void> _pushTheme(ThemeMode mode, {bool force = false}) async {

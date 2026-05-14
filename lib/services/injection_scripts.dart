@@ -609,156 +609,124 @@ class InjectionScripts {
     ''';
   }
 
-  /// Outlook/Exchange credential injection with improved button detection
-  /// Uses Desktop-App approach with ONE-TIME reload after login
+  /// Outlook/Exchange credential injection. BBZ Exchange/OWA leitet auf
+  /// die ADFS-Anmeldeseite weiter (Felder `#userNameInput`,
+  /// `#passwordInput`, Button `#submitButton`). Genau wie in BBZ Cloud 2.
   static String getOutlookInjection(String email, String password) {
     final escapedEmail = _escapeJs(email);
     final escapedPassword = _escapeJs(password);
-    
+
     return '''
-      (async function() {
+      (function() {
         try {
-          console.log('Outlook: Starting credential injection (Desktop-App method)');
-          
-          // Check if we already did the post-login reload
-          const reloadDoneKey = 'bbzcloud_outlook_reload_done';
-          const reloadDone = sessionStorage.getItem(reloadDoneKey);
-          
-          if (reloadDone === 'true') {
-            console.log('Outlook: Post-login reload already done, skipping');
+          // Schon eingeloggt? Dann existiert der ADFS-Form nicht mehr.
+          const u = document.querySelector('#userNameInput');
+          const p = document.querySelector('#passwordInput');
+          const b = document.querySelector('#submitButton');
+
+          // ADFS "Angemeldet bleiben?" Seite
+          const stayBtn = document.querySelector('input[type="submit"]#idSIButton9[value="Ja"]');
+          if (stayBtn && stayBtn.offsetParent !== null) {
+            console.log('Outlook ADFS: clicking "Ja" (stay signed in)');
+            setTimeout(() => stayBtn.click(), 300);
             return;
           }
-          
-          // Find and fill email field
-          const emailSelectors = [
-            'input[type="email"]',
-            'input[name*="loginfmt"]',
-            'input[id*="username"]',
-            'input[name="username"]'
-          ];
-          
-          let emailField = null;
-          for (const selector of emailSelectors) {
-            emailField = document.querySelector(selector);
-            if (emailField && emailField.offsetParent !== null) {
-              break;
-            }
+
+          if (!u || !p || !b) {
+            console.log('Outlook ADFS: form not present, nothing to do');
+            return;
           }
-          
-          if (emailField && emailField.value === '') {
-            emailField.value = "$escapedEmail";
-            emailField.dispatchEvent(new Event('input', { bubbles: true }));
-            emailField.dispatchEvent(new Event('change', { bubbles: true }));
-            emailField.dispatchEvent(new Event('blur', { bubbles: true }));
-            console.log('Outlook: Email filled');
-          }
-          
-          // Find and fill password field
-          const passwordSelectors = [
-            'input[type="password"]',
-            'input[name*="passwd"]',
-            'input[name="password"]'
-          ];
-          
-          let passwordField = null;
-          for (const selector of passwordSelectors) {
-            passwordField = document.querySelector(selector);
-            if (passwordField && passwordField.offsetParent !== null) {
-              break;
-            }
-          }
-          
-          if (passwordField && passwordField.value === '') {
-            passwordField.value = "$escapedPassword";
-            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('blur', { bubbles: true }));
-            console.log('Outlook: Password filled');
-          }
-          
-          // Auto-click submit/next button with comprehensive selector list
-          function clickSubmitButton() {
-            const buttonSelectors = [
-              // NEW: Span elements with role="button" (Outlook uses these!)
-              'span#submitButton[role="button"]',
-              'span.submit[role="button"]',
-              'span[role="button"][onclick*="submitLoginRequest"]',
-              // Original selectors
-              'input[type="submit"]',
-              'button[type="submit"]',
-              'input[id*="idSIButton"]',
-              'button[id*="idSIButton"]',
-              'input[id*="submit"]',
-              'button[id*="submit"]',
-              'input[value*="Sign in"]',
-              'input[value*="Next"]',
-              'input[value*="Anmelden"]',
-              'input[value*="Weiter"]',
-              'button:has([data-icon-name="SignIn"])',
-              'button[data-report-event*="Signin"]',
-              'button[class*="submit"]',
-              'button[class*="primary"]'
-            ];
-            
-            let submitButton = null;
-            for (const selector of buttonSelectors) {
-              const buttons = document.querySelectorAll(selector);
-              for (const btn of buttons) {
-                // Check visibility for both buttons and spans
-                const isVisible = btn.offsetParent !== null || 
-                                window.getComputedStyle(btn).display !== 'none';
-                const isEnabled = !btn.disabled && !btn.hasAttribute('disabled');
-                
-                if (isVisible && isEnabled) {
-                  submitButton = btn;
-                  console.log('Outlook: Found button/span with selector:', selector);
-                  break;
-                }
-              }
-              if (submitButton) break;
-            }
-            
-            if (submitButton) {
-              console.log('Outlook: Clicking submit element');
-              submitButton.click();
-              return true;
-            }
-            
-            console.log('Outlook: Submit button/span not found');
-            return false;
-          }
-          
-          // Only do ONE-TIME reload after login (Desktop-App method)
-          // Check if we actually filled credentials (indicating login attempt)
-          const didFillCredentials = (emailField && emailField.value === "$escapedEmail") || 
-                                    (passwordField && passwordField.value === "$escapedPassword");
-          
-          if (didFillCredentials) {
-            console.log('Outlook: Credentials filled, will reload ONCE after 5 seconds');
-            
-            // Wait for fields to be filled, then click
-            if (emailField || passwordField) {
-              setTimeout(() => {
-                if (!clickSubmitButton()) {
-                  // Try again after a longer delay
-                  setTimeout(clickSubmitButton, 1000);
-                }
-              }, 500);
-            }
-            
-            // ONE-TIME reload after 5 seconds (Desktop-App method)
-            // This prevents false error messages and ensures proper login flow
-            // Mark that we will do the reload to prevent multiple reloads
-            setTimeout(() => {
-              console.log('Outlook: Reloading page ONCE after 5 seconds (desktop-app method)');
-              sessionStorage.setItem(reloadDoneKey, 'true');
-              window.location.reload();
-            }, 5000);
-          } else {
-            console.log('Outlook: No credentials filled, skipping reload (already logged in or different page)');
-          }
+
+          const setNative = (el, value) => {
+            const desc = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype, 'value');
+            if (desc && desc.set) desc.set.call(el, value);
+            el.value = value;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.dispatchEvent(new Event('blur', { bubbles: true }));
+          };
+
+          setNative(u, "$escapedEmail");
+          setNative(p, "$escapedPassword");
+
+          setTimeout(() => {
+            console.log('Outlook ADFS: clicking submit');
+            b.click();
+          }, 400);
         } catch (error) {
-          console.error('Outlook injection error:', error);
+          console.error('Outlook ADFS injection error:', error);
+        }
+      })();
+    ''';
+  }
+
+  /// Nextcloud credential injection: Multi-Step ADFS-SAML-Login.
+  /// 1. Klicke "BBZ ADFS"-Button auf der Nextcloud-Loginseite.
+  /// 2. Fülle ADFS-Formular (`#userNameInput`/`#passwordInput`/`#submitButton`).
+  /// 3. Klicke "Ja" auf der "Angemeldet bleiben?"-Seite.
+  /// Logik 1:1 von BBZ Cloud 2 portiert.
+  static String getNextcloudInjection(String email, String password) {
+    final escapedEmail = _escapeJs(email);
+    final escapedPassword = _escapeJs(password);
+
+    return '''
+      (function() {
+        try {
+          // Step 1: BBZ ADFS button on Nextcloud login page
+          const adfsButton = document.querySelector('a[href*="user_saml/saml/login"]') ||
+                             Array.from(document.querySelectorAll('a')).find(a => a.textContent.trim() === 'BBZ ADFS');
+
+          // Step 2: ADFS login form (same as Outlook)
+          const userNameInput = document.querySelector('#userNameInput');
+          const passwordInput = document.querySelector('#passwordInput');
+          const submitButton = document.querySelector('#submitButton');
+
+          // Step 3: "Stay signed in?" page
+          const jaButton = document.querySelector('input[type="submit"]#idSIButton9[value="Ja"]');
+
+          // Already logged in
+          const loggedIn = document.querySelector('#header') ||
+                           document.querySelector('.app-navigation') ||
+                           document.querySelector('#nextcloud') ||
+                           window.location.href.includes('/apps/');
+
+          if (loggedIn) {
+            console.log('Nextcloud: already logged in');
+            return;
+          }
+
+          if (adfsButton) {
+            console.log('Nextcloud: clicking ADFS button');
+            adfsButton.click();
+            return;
+          }
+
+          if (userNameInput && passwordInput && submitButton) {
+            console.log('Nextcloud: filling ADFS credentials');
+            const setNative = (el, value) => {
+              const desc = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value');
+              if (desc && desc.set) desc.set.call(el, value);
+              el.value = value;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+            setNative(userNameInput, "$escapedEmail");
+            setNative(passwordInput, "$escapedPassword");
+            setTimeout(() => submitButton.click(), 500);
+            return;
+          }
+
+          if (jaButton) {
+            console.log('Nextcloud: clicking "Ja" (stay signed in)');
+            setTimeout(() => jaButton.click(), 300);
+            return;
+          }
+
+          console.log('Nextcloud: no matching login state');
+        } catch (error) {
+          console.error('Nextcloud injection error:', error);
         }
       })();
     ''';
@@ -872,7 +840,10 @@ class InjectionScripts {
       
       case 'outlook':
         return getOutlookInjection(email, password);
-      
+
+      case 'nextcloud':
+        return getNextcloudInjection(email, password);
+
       case 'taskcards':
         // TaskCards: Email only, no password (per user request)
         return getTaskcardsInjection(email, password);

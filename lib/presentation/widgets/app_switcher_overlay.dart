@@ -12,17 +12,26 @@ import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
 import 'package:bbzcloud_mobil/data/models/custom_app.dart';
 import 'package:bbzcloud_mobil/data/models/todo.dart';
 import 'package:bbzcloud_mobil/presentation/providers/apps_provider.dart';
+import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
+import 'package:bbzcloud_mobil/presentation/providers/current_webview_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/webview_stack_provider.dart';
 import 'package:bbzcloud_mobil/presentation/providers/todo_provider.dart';
+import 'package:bbzcloud_mobil/presentation/screens/settings_screen.dart';
+import 'package:bbzcloud_mobil/presentation/screens/todos_screen.dart';
 
 class AppSwitcherOverlay extends ConsumerWidget {
   final Function(String id, String title, String url, bool requiresAuth) onAppSelected;
   final VoidCallback onClose;
 
+  /// Optional: jump back to Chat home. When null, "Chat"-Tile
+  /// schliesst nur den Switcher (z.B. wenn er bereits ueber dem Chat liegt).
+  final VoidCallback? onJumpToChat;
+
   const AppSwitcherOverlay({
     super.key,
     required this.onAppSelected,
     required this.onClose,
+    this.onJumpToChat,
   });
 
   @override
@@ -207,10 +216,64 @@ class AppSwitcherOverlay extends ConsumerWidget {
                     crossAxisSpacing: AppSpacing.sm,
                     mainAxisSpacing: AppSpacing.sm,
                   ),
-                  itemCount: apps.length,
+                  // Special tiles: Chat, Aufgaben, Einstellungen vor den Apps.
+                  itemCount: apps.length + 3,
                   itemBuilder: (context, index) {
-                    final app = apps[index];
-                    
+                    // Special tiles first.
+                    if (index == 0) {
+                      return _SpecialTile(
+                        title: 'Chat',
+                        icon: Icons.chat_bubble_outline,
+                        color: const Color(0xFF3880FF),
+                        badge: ref.watch(chatUnreadProvider),
+                        onTap: () {
+                          onClose();
+                          if (onJumpToChat != null) {
+                            onJumpToChat!();
+                          } else {
+                            // Tablet: clear active webview to show chat pane.
+                            ref
+                                .read(tabletWebViewProvider.notifier)
+                                .clearWebView();
+                          }
+                        },
+                      );
+                    }
+                    if (index == 1) {
+                      return _SpecialTile(
+                        title: 'Aufgaben',
+                        icon: Icons.check_circle_outline,
+                        color: Colors.orange,
+                        onTap: () {
+                          onClose();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TodosScreen(),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                    if (index == 2) {
+                      return _SpecialTile(
+                        title: 'Einstellungen',
+                        icon: Icons.settings,
+                        color: Colors.grey,
+                        onTap: () {
+                          onClose();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                      );
+                    }
+
+                    final app = apps[index - 3];
+
                     String id, title, url;
                     Color color;
                     IconData icon;
@@ -459,6 +522,90 @@ class AppSwitcherOverlay extends ConsumerWidget {
               },
               child: const Text('Hinzufügen'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Special tile for non-WebView destinations (Chat home, Settings,
+/// Todos) inside the app switcher.
+class _SpecialTile extends StatelessWidget {
+  const _SpecialTile({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.badge = 0,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final int badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.sm),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color, color.withOpacity(0.8)],
+          ),
+          borderRadius: BorderRadius.circular(AppSpacing.sm),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.white, size: 32),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    title,
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (badge > 0)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  constraints: const BoxConstraints(minWidth: 20, minHeight: 18),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge > 99 ? '99+' : '$badge',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
