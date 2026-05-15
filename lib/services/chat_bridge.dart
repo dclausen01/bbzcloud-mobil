@@ -22,6 +22,7 @@ import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/chat_auth_service.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
+import 'package:bbzcloud_mobil/services/app_icon_badge.dart';
 import 'package:bbzcloud_mobil/services/push_service.dart';
 
 typedef OnLogoutCallback = Future<void> Function();
@@ -64,14 +65,14 @@ class ChatBridge {
 
     controller.addJavaScriptHandler(
       handlerName: 'setBadge',
-      callback: (args) {
+      callback: (args) async {
         final n = _firstInt(args);
         if (n != null) {
           ref.read(chatStateProvider.notifier).setUnread(n);
+          // OS-Level Icon-Badge (Launcher-Punkt mit Zahl). Wird nur auf
+          // unterstuetzten Geraeten / Launchern angezeigt; sonst no-op.
+          await AppIconBadge.set(n);
         }
-        // FlutterAppBadger integration → Phase 3 (with push). For now we
-        // simply mirror the value into the unread state, which already
-        // drives all visible badges.
         return null;
       },
     );
