@@ -29,6 +29,7 @@ import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
+import 'package:bbzcloud_mobil/services/app_icon_badge.dart';
 import 'package:bbzcloud_mobil/services/chat_bridge.dart';
 import 'package:bbzcloud_mobil/services/push_service.dart';
 
@@ -258,6 +259,11 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     final c = _controller;
     final b = _bridge;
     if (c == null || b == null) return;
+
+    // Chat ist offen → OS-Icon-Badge zuruecksetzen. Der React-Chat
+    // sendet `setBadge(n)` ueber die Bridge sobald er Unread-Counts
+    // neu berechnet hat; bis dahin ist 0 das sinnvolle Default.
+    unawaited(AppIconBadge.clear());
 
     // 0. Viewport / Layout Fix: erzwinge volle Höhe und entferne den
     //    weißen Streifen, der manchmal entstand, wenn das React-App

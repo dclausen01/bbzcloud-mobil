@@ -29,6 +29,7 @@ import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
 import 'package:bbzcloud_mobil/data/services/chat_auth_service.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
+import 'package:bbzcloud_mobil/services/app_icon_badge.dart';
 
 const String _androidChannelId = 'bbz_chat_messages';
 const String _androidChannelName = 'Chat-Nachrichten';
@@ -89,6 +90,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         data['preview']?.toString() ??
         'Neue Nachricht';
     final deeplink = data['deeplink']?.toString();
+
+    // OS-Icon-Badge: wenn der Server unreadCount mitschickt, das nehmen.
+    final unread = int.tryParse(data['unreadCount']?.toString() ?? '');
+    if (unread != null) {
+      await AppIconBadge.set(unread);
+    }
 
     await local.show(
       message.hashCode,
@@ -285,6 +292,7 @@ class PushService {
       _container
           ?.read(chatStateProvider.notifier)
           .setUnread(unread);
+      unawaited(AppIconBadge.set(unread));
     }
 
     _local.show(
