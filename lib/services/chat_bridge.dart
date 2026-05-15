@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -174,10 +175,53 @@ class ChatBridge {
     );
 
     controller.addJavaScriptHandler(
+      handlerName: 'haptic',
+      callback: (args) async {
+        // Arg kann String ('light'|'medium'|'heavy'|'selection'|'success'
+        // |'warning'|'error') oder ein Map mit { type: '...' } sein.
+        String type = 'light';
+        if (args.isNotEmpty) {
+          final a = args.first;
+          if (a is String) {
+            type = a;
+          } else if (a is Map && a['type'] is String) {
+            type = a['type'] as String;
+          }
+        }
+        try {
+          switch (type) {
+            case 'medium':
+              await HapticFeedback.mediumImpact();
+              break;
+            case 'heavy':
+            case 'error':
+              await HapticFeedback.heavyImpact();
+              break;
+            case 'selection':
+              await HapticFeedback.selectionClick();
+              break;
+            case 'success':
+            case 'warning':
+              await HapticFeedback.mediumImpact();
+              break;
+            case 'light':
+            default:
+              await HapticFeedback.lightImpact();
+          }
+        } catch (e) {
+          // Auf Plattformen ohne Haptik (z.B. iPad ohne Taptic Engine)
+          // einfach ignorieren.
+        }
+        return null;
+      },
+    );
+
+    controller.addJavaScriptHandler(
       handlerName: 'captureImage',
       callback: (args) async {
         // Optionsobjekt: { maxWidth?: number, maxHeight?: number,
         // imageQuality?: number (0..100), preferFrontCamera?: bool }
+        // Returns: string (file:// URI) bei Erfolg, null bei Abbruch.
         double? maxWidth;
         double? maxHeight;
         int? imageQuality;
@@ -197,11 +241,11 @@ class ChatBridge {
             imageQuality: imageQuality,
             preferredCameraDevice: cam,
           );
-          if (photo == null) return <String>[];
-          return [Uri.file(photo.path).toString()];
+          if (photo == null) return null;
+          return Uri.file(photo.path).toString();
         } catch (e) {
           logger.warning('captureImage failed: $e');
-          return <String>[];
+          return null;
         }
       },
     );
@@ -210,6 +254,7 @@ class ChatBridge {
       handlerName: 'captureVideo',
       callback: (args) async {
         // Optionsobjekt: { maxDurationSeconds?: number, preferFrontCamera?: bool }
+        // Returns: string (file:// URI) bei Erfolg, null bei Abbruch.
         Duration? maxDur;
         CameraDevice cam = CameraDevice.rear;
         if (args.isNotEmpty && args.first is Map) {
@@ -224,11 +269,11 @@ class ChatBridge {
             maxDuration: maxDur,
             preferredCameraDevice: cam,
           );
-          if (video == null) return <String>[];
-          return [Uri.file(video.path).toString()];
+          if (video == null) return null;
+          return Uri.file(video.path).toString();
         } catch (e) {
           logger.warning('captureVideo failed: $e');
-          return <String>[];
+          return null;
         }
       },
     );
