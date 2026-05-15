@@ -50,23 +50,24 @@ class ChatHomeScreen extends ConsumerWidget {
   Widget _buildPhone(BuildContext context) {
     return Scaffold(
       drawer: const AppDrawer(),
-      body: const SafeArea(
-        top: true,
-        // The React chat sets padding-bottom via env(safe-area-inset-
-        // bottom), so we skip the bottom inset here to avoid double
-        // padding on devices with home indicators.
-        bottom: false,
-        child: Stack(
-          children: [
-            Positioned.fill(child: ChatWebView()),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: OfflineBanner(),
-            ),
-          ],
-        ),
+      // Wir setzen KEINE SafeArea: der React-Chat handhabt seit
+      // Phase 1 sowohl `padding-top: env(safe-area-inset-top)` (App-Bar)
+      // als auch `padding-bottom: env(safe-area-inset-bottom)`
+      // (Composer) selbst. Wuerde Flutter hier zusaetzlich SafeArea
+      // einfuegen, gaebe es Double-Padding und der bekannte
+      // weisse Streifen erscheint wieder oben.
+      body: const Stack(
+        children: [
+          Positioned.fill(child: ChatWebView()),
+          // Offline-Banner respektiert die Status-Bar via eigener
+          // SafeArea() im Banner-Widget.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: OfflineBanner(),
+          ),
+        ],
       ),
     );
   }

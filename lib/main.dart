@@ -4,6 +4,7 @@
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +18,22 @@ import 'package:bbzcloud_mobil/services/push_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Edge-to-Edge: WebView zeichnet bis unter die Statusbar/Nav-Bar.
+  // Damit gibt env(safe-area-inset-top/bottom) im WebView die echte
+  // System-Inset-Hoehe zurueck und der React-Chat kann sich selbst
+  // korrekt einrichten (App-Bar mit safe-area-top, Composer mit
+  // safe-area-bottom). Ohne diesen Aufruf liegen die Systembars ueber
+  // der WebView und env() ist 0 -> Layout-Konflikte.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    // Status-Bar-Icons werden gleich vom Theme dynamisch gesetzt -
+    // wir nehmen hier light als Default fuer den initialen Frame.
+    statusBarIconBrightness: Brightness.dark,
+  ));
 
   // Initialize database before starting the app.
   try {
