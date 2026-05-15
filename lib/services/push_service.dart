@@ -37,17 +37,78 @@ const String _androidChannelDescription =
 
 /// Background isolate handler. **Must** be a top-level function so the
 /// Dart isolate can find it.
+///
+/// Wichtig: dieser Handler laeuft in einem **separaten Isolate**, ohne
+/// Zugriff auf Riverpod, Singletons oder ProviderContainer. Wir
+/// initialisieren Firebase + ein lokales FlutterLocalNotificationsPlugin
+/// und rendern die Local-Notification direkt.
+///
+/// Hintergrund: Der BBZ-Chat-Server schickt Android-Pushes als
+/// **data-only**-Payload (siehe `docs/STASHCAT_CHAT_INTEGRATION.md` §4).
+/// data-only-Messages werden vom System NICHT von alleine angezeigt -
+/// die App muss sie selbst rendern, sonst kommt am Geraet nichts an.
+/// iOS bekommt zusaetzlich ein `notification`-Payload und braucht
+/// diesen Pfad daher nicht.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
   } catch (_) {/* already initialised */}
-  // We don't render anything here on Android because the server already
-  // sends a notification payload for iOS, and Android receives data-only
-  // pushes that the system will not display anyway when the app is fully
-  // terminated. The local-notification rendering happens on
-  // onMessageOpenedApp / onMessage instead.
   debugPrint('Background FCM message id=${message.messageId}');
+
+  // iOS: das System zeigt die Notification bereits via `notification`
+  // Payload an. Wir wuerden hier sonst doppelt anzeigen.
+  if (Platform.isIOS) return;
+
+  try {
+    final local = FlutterLocalNotificationsPlugin();
+    const androidInit = AndroidInitializationSettings('ic_stat_notify');
+    await local.initialize(
+      const InitializationSettings(android: androidInit),
+    );
+
+    // Channel ist OS-weit; falls er noch nicht existiert (z.B. App
+    // direkt nach Install ueber Push aufgeweckt), erstellen wir ihn
+    // hier defensiv.
+    final androidImpl = local.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImpl?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _androidChannelId,
+        _androidChannelName,
+        description: _androidChannelDescription,
+        importance: Importance.high,
+      ),
+    );
+
+    final data = message.data;
+    final title = message.notification?.title ??
+        data['channelName']?.toString() ??
+        'BBZ Chat';
+    final body = message.notification?.body ??
+        data['preview']?.toString() ??
+        'Neue Nachricht';
+    final deeplink = data['deeplink']?.toString();
+
+    await local.show(
+      message.hashCode,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _androidChannelId,
+          _androidChannelName,
+          channelDescription: _androidChannelDescription,
+          icon: 'ic_stat_notify',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+      payload: deeplink == null ? null : jsonEncode({'deeplink': deeplink}),
+    );
+  } catch (e) {
+    debugPrint('Background notification render failed: $e');
+  }
 }
 
 class PushService {
