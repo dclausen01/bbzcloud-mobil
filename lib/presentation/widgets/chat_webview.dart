@@ -101,12 +101,34 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           return;
         }
         final c = _controller;
-        if (c != null && await c.canGoBack()) {
+        if (c == null) {
+          await SystemNavigator.pop();
+          return;
+        }
+
+        // 1) React-Chat zuerst fragen, ob er den Back-Event selbst
+        //    konsumieren will (z.B. Conversation-Sicht schliesst sich,
+        //    Sidebar oeffnet sich, modaler Dialog schliesst, ...).
+        //    React Router pushState-Eintraege landen oft NICHT in der
+        //    nativen WebView-History, deshalb reicht `canGoBack()`
+        //    allein nicht aus.
+        try {
+          final res = await c.evaluateJavascript(source:
+              "(function(){try{return !!(window.bbzChat && typeof window.bbzChat.handleBack==='function' && window.bbzChat.handleBack());}catch(e){return false}})()");
+          if (res == true || res == 'true') {
+            return; // React hat den Back konsumiert.
+          }
+        } catch (_) {
+          // ignore - fallback auf native History.
+        }
+
+        // 2) Native WebView-History (klassische href-Navigation).
+        if (await c.canGoBack()) {
           await c.goBack();
           return;
         }
-        // Auf der Chat-Startseite: App in den Hintergrund legen,
-        // statt sie zu schließen.
+
+        // 3) Top-Level: App in den Hintergrund.
         await SystemNavigator.pop();
       },
       child: Stack(
