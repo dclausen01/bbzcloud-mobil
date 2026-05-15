@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <queries>
         <package android:name="de.heinekingmedia.schulcloud" />
         <package android:name="com.grupet.web.app" />
@@ -13,10 +14,20 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!-- Android 13+ scoped media permissions for file/image attachment picker -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Android 13+: wir verlassen uns bewusst auf den System Photo
+         Picker (image_picker) bzw. SAF/Document Picker (file_picker).
+         Beide funktionieren ohne READ_MEDIA_* Permissions und erfordern
+         deshalb auch keine "Photo and video permissions declaration"
+         im Play Console.
+
+         Plugins (insb. image_picker) mergen diese Permissions
+         transitiv ueber ihre eigenen AndroidManifests rein. Wir
+         entfernen sie hier explizit, damit das gemergte App-Manifest
+         sie NICHT enthaelt. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" tools:node="remove" />
 
     <!-- Push notifications (Android 13+ requires runtime permission) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

@@ -12,7 +12,9 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -168,6 +170,110 @@ class ChatBridge {
         } catch (e) {
           logger.warning('pickFiles failed: $e');
           return <String>[];
+        }
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'haptic',
+      callback: (args) async {
+        // Arg kann String ('light'|'medium'|'heavy'|'selection'|'success'
+        // |'warning'|'error') oder ein Map mit { type: '...' } sein.
+        String type = 'light';
+        if (args.isNotEmpty) {
+          final a = args.first;
+          if (a is String) {
+            type = a;
+          } else if (a is Map && a['type'] is String) {
+            type = a['type'] as String;
+          }
+        }
+        try {
+          switch (type) {
+            case 'medium':
+              await HapticFeedback.mediumImpact();
+              break;
+            case 'heavy':
+            case 'error':
+              await HapticFeedback.heavyImpact();
+              break;
+            case 'selection':
+              await HapticFeedback.selectionClick();
+              break;
+            case 'success':
+            case 'warning':
+              await HapticFeedback.mediumImpact();
+              break;
+            case 'light':
+            default:
+              await HapticFeedback.lightImpact();
+          }
+        } catch (e) {
+          // Auf Plattformen ohne Haptik (z.B. iPad ohne Taptic Engine)
+          // einfach ignorieren.
+        }
+        return null;
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'captureImage',
+      callback: (args) async {
+        // Optionsobjekt: { maxWidth?: number, maxHeight?: number,
+        // imageQuality?: number (0..100), preferFrontCamera?: bool }
+        // Returns: string (file:// URI) bei Erfolg, null bei Abbruch.
+        double? maxWidth;
+        double? maxHeight;
+        int? imageQuality;
+        CameraDevice cam = CameraDevice.rear;
+        if (args.isNotEmpty && args.first is Map) {
+          final opts = (args.first as Map).cast<String, dynamic>();
+          maxWidth = (opts['maxWidth'] as num?)?.toDouble();
+          maxHeight = (opts['maxHeight'] as num?)?.toDouble();
+          imageQuality = (opts['imageQuality'] as num?)?.toInt();
+          if (opts['preferFrontCamera'] == true) cam = CameraDevice.front;
+        }
+        try {
+          final XFile? photo = await ImagePicker().pickImage(
+            source: ImageSource.camera,
+            maxWidth: maxWidth,
+            maxHeight: maxHeight,
+            imageQuality: imageQuality,
+            preferredCameraDevice: cam,
+          );
+          if (photo == null) return null;
+          return Uri.file(photo.path).toString();
+        } catch (e) {
+          logger.warning('captureImage failed: $e');
+          return null;
+        }
+      },
+    );
+
+    controller.addJavaScriptHandler(
+      handlerName: 'captureVideo',
+      callback: (args) async {
+        // Optionsobjekt: { maxDurationSeconds?: number, preferFrontCamera?: bool }
+        // Returns: string (file:// URI) bei Erfolg, null bei Abbruch.
+        Duration? maxDur;
+        CameraDevice cam = CameraDevice.rear;
+        if (args.isNotEmpty && args.first is Map) {
+          final opts = (args.first as Map).cast<String, dynamic>();
+          final secs = (opts['maxDurationSeconds'] as num?)?.toInt();
+          if (secs != null && secs > 0) maxDur = Duration(seconds: secs);
+          if (opts['preferFrontCamera'] == true) cam = CameraDevice.front;
+        }
+        try {
+          final XFile? video = await ImagePicker().pickVideo(
+            source: ImageSource.camera,
+            maxDuration: maxDur,
+            preferredCameraDevice: cam,
+          );
+          if (video == null) return null;
+          return Uri.file(video.path).toString();
+        } catch (e) {
+          logger.warning('captureVideo failed: $e');
+          return null;
         }
       },
     );
