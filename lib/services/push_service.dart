@@ -61,6 +61,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Payload an. Wir wuerden hier sonst doppelt anzeigen.
   if (Platform.isIOS) return;
 
+  // Android: Bei "hybrid" Payloads (Firebase Console Test-Send,
+  // oder wenn der Server irgendwann sowohl notification als auch
+  // data mitschickt) rendert das System die Notification automatisch
+  // aus dem `notification`-Payload. Unser Background-Handler wuerde
+  // dann eine zweite, identische Local-Notification draufpacken.
+  //
+  // Vom BBZ-Chat-Dispatcher (Phase 3 Spec) kommen reine data-only
+  // Pushes, dort ist `message.notification` null und wir rendern wie
+  // gewohnt.
+  if (message.notification != null) {
+    debugPrint('Background FCM: notification payload present, skipping '
+        'local notification (system will display).');
+    return;
+  }
+
   try {
     final local = FlutterLocalNotificationsPlugin();
     const androidInit = AndroidInitializationSettings('ic_stat_notify');
