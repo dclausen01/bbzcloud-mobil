@@ -311,13 +311,19 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     if (!_tokenPushed) {
       final token = await _ensureMobileToken();
       if (token != null && token.isNotEmpty) {
-        // 1a) Bridge-Pfad (neue mobile-session API): setToken().
+        // Bridge-Pfad: setToken() triggert serverseitig
+        // /api/auth/mobile-session und liefert dem React-Client den
+        // Session-Token, der dann in localStorage.schulchat_token landet
+        // und fuer SSE/Cookies verwendet wird.
+        //
+        // WICHTIG: Wir schreiben den mobileToken NICHT mehr selbst in
+        // localStorage.schulchat_token - das war ein Fallback aus der Zeit
+        // vor mobile-session und ist seit dem Server-Fix aktiv schaedlich:
+        // der React-Client wuerde den 64-Hex-mobileToken als Session-Token
+        // interpretieren und damit eine EventSource zu /api/events oeffnen
+        // -> Server lehnt mit "Invalid token format" ab, Doppel-Connect,
+        // unnoetiges Log-Rauschen.
         await b.setToken(token);
-        // 1b) Fallback-Pfad: Token auch direkt in localStorage als
-        //     `schulchat_token` ablegen. So funktioniert Auto-Login
-        //     selbst dann, wenn die mobile-session-Route im Backend
-        //     noch nicht ausgerollt ist (BBZ Cloud 2 Pattern).
-        await _writeChatLocalStorageToken(token);
         _tokenPushed = true;
 
         // Nach erfolgreichem SSO auch sicherstellen, dass der FCM-Token
@@ -419,25 +425,6 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
       ''');
     } catch (e) {
       logger.warning('Chat layout fix failed: $e');
-    }
-  }
-
-  /// Schreibt den mobileToken zusätzlich in `localStorage.schulchat_token`,
-  /// damit der React-Chat ihn auch direkt verwenden kann (genau wie
-  /// BBZ Cloud 2). Sicher: läuft ausschließlich auf der Chat-Domain.
-  Future<void> _writeChatLocalStorageToken(String token) async {
-    final c = _controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(source: '''
-        (function() {
-          try {
-            localStorage.setItem('schulchat_token', ${jsonEncode(token)});
-          } catch (e) {}
-        })();
-      ''');
-    } catch (e) {
-      logger.warning('Chat localStorage token write failed: $e');
     }
   }
 
