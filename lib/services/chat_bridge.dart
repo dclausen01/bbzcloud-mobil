@@ -176,6 +176,17 @@ class ChatBridge {
     );
 
     controller.addJavaScriptHandler(
+      handlerName: 'notifyRouteChange',
+      callback: (args) {
+        final path = _firstString(args);
+        if (path != null && path.isNotEmpty) {
+          ref.read(chatStateProvider.notifier).setCurrentPath(path);
+        }
+        return null;
+      },
+    );
+
+    controller.addJavaScriptHandler(
       handlerName: 'haptic',
       callback: (args) async {
         // Arg kann String ('light'|'medium'|'heavy'|'selection'|'success'

@@ -106,12 +106,26 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           return;
         }
 
+        // 0) Schnellpfad: Wenn das React-Frontend ueber notifyRouteChange
+        //    gemeldet hat, dass wir auf der Root-Sicht sind, koennen wir
+        //    den JS-Round-Trip sparen und direkt in den Hintergrund.
+        //    (Modals/Bottom-Sheets aendern den Pfad nicht, also gilt das
+        //    nur fuer Top-Level Root-Sicht ohne offenes Overlay.)
+        final path = ref.read(chatStateProvider).currentPath;
+        if (path == '/') {
+          // Trotzdem 1x handleBack fragen - falls ein Modal offen ist,
+          // soll der React-Chat das selbst schliessen koennen.
+          try {
+            final res = await c.evaluateJavascript(source:
+                "(function(){try{return !!(window.bbzChat && typeof window.bbzChat.handleBack==='function' && window.bbzChat.handleBack());}catch(e){return false}})()");
+            if (res == true || res == 'true') return;
+          } catch (_) {}
+          await SystemNavigator.pop();
+          return;
+        }
+
         // 1) React-Chat zuerst fragen, ob er den Back-Event selbst
-        //    konsumieren will (z.B. Conversation-Sicht schliesst sich,
-        //    Sidebar oeffnet sich, modaler Dialog schliesst, ...).
-        //    React Router pushState-Eintraege landen oft NICHT in der
-        //    nativen WebView-History, deshalb reicht `canGoBack()`
-        //    allein nicht aus.
+        //    konsumieren will (Conversation schliessen, Modal zu, ...).
         try {
           final res = await c.evaluateJavascript(source:
               "(function(){try{return !!(window.bbzChat && typeof window.bbzChat.handleBack==='function' && window.bbzChat.handleBack());}catch(e){return false}})()");
