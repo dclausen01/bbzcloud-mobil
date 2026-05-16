@@ -170,6 +170,24 @@ class PushService {
       _handleMessageOpenedApp(initial);
     }
 
+    // App was terminated, *Local*-Notification (vom Background-Isolate
+    // gerendert, weil der Server data-only schickt) launched die App →
+    // Payload aus den NotificationAppLaunchDetails holen und Deeplink
+    // einspeisen. Ohne diesen Pfad wuerde ein Tap auf eine BG-Local-
+    // Notification zwar die App oeffnen, aber den Chat nicht aufs
+    // richtige Channel/DM navigieren.
+    try {
+      final launch = await _local.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        final payload = launch!.notificationResponse?.payload;
+        if (payload != null && payload.isNotEmpty) {
+          _handleLocalNotificationLaunchPayload(payload);
+        }
+      }
+    } catch (e) {
+      logger.warning('getNotificationAppLaunchDetails failed: $e');
+    }
+
     // Token rotation – re-register every time FCM hands us a new token.
     FirebaseMessaging.instance.onTokenRefresh.listen((token) {
       _currentToken = token;
@@ -340,6 +358,13 @@ class PushService {
   void _handleLocalNotificationTap(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
+    _handleLocalNotificationLaunchPayload(payload);
+  }
+
+  /// Shared payload-parsing path - laeuft sowohl beim Tap auf eine
+  /// aktive Local-Notification (App im Vordergrund/Hintergrund) als
+  /// auch beim Cold-Start aus den NotificationAppLaunchDetails.
+  void _handleLocalNotificationLaunchPayload(String payload) {
     try {
       final json = jsonDecode(payload) as Map<String, dynamic>;
       final deeplink = json['deeplink']?.toString();
