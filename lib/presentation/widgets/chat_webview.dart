@@ -342,6 +342,18 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
     // 2. Theme synchron halten – beim ersten Boot reicht ein push.
     final mode = ref.read(themeModeProvider);
     await _pushTheme(mode, force: true);
+
+    // 3. Pending Deeplink abholen, falls schon einer ansteht.
+    //    Beim Cold-Start (App ueber Notification-Tap gestartet) wird
+    //    requestDeeplink() VOR dem ersten WebView-Mount aufgerufen,
+    //    bevor unser ref.listen aktiv ist - der initiale Wert wird
+    //    also nicht gemeldet. Hier holen wir ihn einmal nach.
+    final pending = ref.read(chatStateProvider).pendingDeeplink;
+    if (pending != null && pending.isNotEmpty) {
+      logger.info('Replaying pending deeplink: $pending');
+      await b.navigate(pending);
+      ref.read(chatStateProvider.notifier).consumeDeeplink();
+    }
   }
 
   /// Fordert die Android/iOS-System-Permissions an, die vom WebView
