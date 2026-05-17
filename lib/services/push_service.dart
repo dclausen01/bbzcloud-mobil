@@ -99,9 +99,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
     final data = message.data;
     final title = message.notification?.title ??
+        data['title']?.toString() ??
+        data['senderName']?.toString() ??
         data['channelName']?.toString() ??
         'BBZ Chat';
     final body = message.notification?.body ??
+        data['body']?.toString() ??
         data['preview']?.toString() ??
         'Neue Nachricht';
     final deeplink = data['deeplink']?.toString();
@@ -312,10 +315,15 @@ class PushService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     final data = message.data;
-    final title =
-        message.notification?.title ?? data['channelName']?.toString() ?? 'BBZ Chat';
-    final body =
-        message.notification?.body ?? data['preview']?.toString() ?? 'Neue Nachricht';
+    final title = message.notification?.title ??
+        data['title']?.toString() ??
+        data['senderName']?.toString() ??
+        data['channelName']?.toString() ??
+        'BBZ Chat';
+    final body = message.notification?.body ??
+        data['body']?.toString() ??
+        data['preview']?.toString() ??
+        'Neue Nachricht';
     final deeplink = data['deeplink']?.toString();
 
     // Bump unread badge if the server included it.
