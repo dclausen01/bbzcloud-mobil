@@ -58,21 +58,27 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Background FCM message id=${message.messageId}');
 
   // iOS: das System zeigt die Notification bereits via `notification`
-  // Payload an. Wir wuerden hier sonst doppelt anzeigen.
+  // Payload an. Wir wuerden hier sonst doppelt anzeigen. Badge wird
+  // unter iOS via APNs vom System selbst gesetzt.
   if (Platform.isIOS) return;
 
-  // Android: Bei "hybrid" Payloads (Firebase Console Test-Send,
-  // oder wenn der Server irgendwann sowohl notification als auch
-  // data mitschickt) rendert das System die Notification automatisch
-  // aus dem `notification`-Payload. Unser Background-Handler wuerde
-  // dann eine zweite, identische Local-Notification draufpacken.
-  //
-  // Vom BBZ-Chat-Dispatcher (Phase 3 Spec) kommen reine data-only
-  // Pushes, dort ist `message.notification` null und wir rendern wie
-  // gewohnt.
+  // Android: Bei hybrid Payloads (Server schickt jetzt notification +
+  // data, weil reine data-only-Pushes nach laengerem Offline-Betrieb
+  // von OEM-Battery-Managers verworfen werden) rendert das System
+  // die Notification automatisch aus dem `notification`-Payload.
+  // Wir UEBERSPRINGEN dann unsere Local-Notification (kein
+  // Doppel-Banner) - aktualisieren aber den OS-Icon-Badge aus
+  // `data.unreadCount`, weil das State-Update unabhaengig vom
+  // Banner relevant bleibt.
   if (message.notification != null) {
-    debugPrint('Background FCM: notification payload present, skipping '
-        'local notification (system will display).');
+    final unread =
+        int.tryParse(message.data['unreadCount']?.toString() ?? '');
+    if (unread != null) {
+      await AppIconBadge.set(unread);
+    }
+    debugPrint('Background FCM: notification payload present, '
+        'skipping local notification (system will display); '
+        'badge updated.');
     return;
   }
 
