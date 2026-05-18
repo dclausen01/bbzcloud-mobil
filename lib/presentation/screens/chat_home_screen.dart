@@ -50,25 +50,14 @@ class ChatHomeScreen extends ConsumerWidget {
   Widget _buildPhone(BuildContext context) {
     return Scaffold(
       drawer: const AppDrawer(),
-      // Wir setzen KEINE SafeArea: der React-Chat handhabt seit
-      // Phase 1 sowohl `padding-top: env(safe-area-inset-top)` (App-Bar)
-      // als auch `padding-bottom: env(safe-area-inset-bottom)`
-      // (Composer) selbst. Wuerde Flutter hier zusaetzlich SafeArea
-      // einfuegen, gaebe es Double-Padding und der bekannte
-      // weisse Streifen erscheint wieder oben.
-      body: const Stack(
-        children: [
-          Positioned.fill(child: ChatWebView()),
-          // Offline-Banner respektiert die Status-Bar via eigener
-          // SafeArea() im Banner-Widget.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: OfflineBanner(),
-          ),
-        ],
-      ),
+      // resizeToAvoidBottomInset bleibt Flutter-Standard (true). Mit
+      // SystemUiMode.edgeToEdge greift das fuer Standard-IMEs, NICHT
+      // aber zuverlaessig fuer Gboard's Emoji-Picker (groesseres
+      // Floating-Panel, andere Window-Flags). Wir handeln den IME-
+      // Inset deshalb explizit ueber MediaQuery.viewInsetsOf, damit
+      // der WebView immer genau ueber der Tastatur endet - egal
+      // welche.
+      body: const _ChatBodyWithIME(),
     );
   }
 
@@ -112,6 +101,7 @@ class _TabletChatPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return Column(
       children: [
         AppBar(
@@ -119,7 +109,42 @@ class _TabletChatPane extends StatelessWidget {
           automaticallyImplyLeading: false,
         ),
         const OfflineBanner(),
-        const Expanded(child: ChatWebView()),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: const ChatWebView(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Hostet die ChatWebView auf dem Phone und respektiert den
+/// IME-Inset auch fuer den Gboard-Emoji-Picker (der mit edge-to-edge
+/// vom Scaffold-Auto-Resize nicht zuverlaessig erfasst wird).
+class _ChatBodyWithIME extends StatelessWidget {
+  const _ChatBodyWithIME();
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: const ChatWebView(),
+          ),
+        ),
+        // Offline-Banner respektiert die Status-Bar via eigener
+        // SafeArea() im Banner-Widget.
+        const Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: OfflineBanner(),
+        ),
       ],
     );
   }
