@@ -19,8 +19,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
+import 'package:bbzcloud_mobil/core/utils/global_keys.dart';
+import 'package:bbzcloud_mobil/core/utils/web_url_utils.dart';
 import 'package:bbzcloud_mobil/data/services/chat_auth_service.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
+import 'package:bbzcloud_mobil/presentation/screens/webview_screen.dart';
 import 'package:bbzcloud_mobil/presentation/providers/chat_state_provider.dart';
 import 'package:bbzcloud_mobil/services/app_icon_badge.dart';
 import 'package:bbzcloud_mobil/services/push_service.dart';
@@ -356,6 +359,30 @@ class ChatBridge {
   }) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
+
+    // OnlyOffice (office.bbz-rd-eck.de): in-app oeffnen mit Desktop-UA,
+    // damit der Server uns die Desktop-Editor-Variante liefert. Sonst
+    // wuerde der Mobile-Browser den abgespeckten Mobile-Editor laden.
+    if (isOnlyOfficeUrl(url)) {
+      final nav = rootNavigatorKey.currentState;
+      if (nav != null) {
+        logger.info('OnlyOffice URL -> in-app WebView (desktop UA)');
+        await nav.push(
+          MaterialPageRoute(
+            builder: (_) => WebViewScreen(
+              appId: 'onlyoffice',
+              title: 'OnlyOffice',
+              url: url,
+              requiresAuth: false,
+            ),
+          ),
+        );
+        return;
+      }
+      // Falls Navigator nicht verfuegbar: Fall-through auf System-Browser.
+      logger.warning('OnlyOffice: rootNavigator null - falling back to system browser');
+    }
+
     final mode = preferExternalApp
         ? LaunchMode.externalApplication
         : LaunchMode.externalNonBrowserApplication;

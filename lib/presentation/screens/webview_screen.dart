@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
+import 'package:bbzcloud_mobil/core/utils/web_url_utils.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/services/injection_scripts.dart';
 import 'package:bbzcloud_mobil/services/download_service.dart';
@@ -848,16 +849,14 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   /// Get app-specific User Agent string
   /// WebUntis and schul.cloud get Windows Desktop UA
   String _getUserAgentForApp(String? appId) {
-    if (appId?.toLowerCase() == 'webuntis' || 
-        appId?.toLowerCase() == 'schulcloud') {
-      // Windows 10 Chrome Desktop User Agent
-      // WebUntis: Avoids mobile banner entirely
-      // schul.cloud: May set persistent cookies instead of session-only
-      return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    final id = appId?.toLowerCase();
+    // OnlyOffice + WebUntis + SchulCloud bekommen Desktop-UA,
+    // sonst wuerde der Server den Mobile-Editor bzw. Mobile-Banner
+    // liefern.
+    if (id == 'webuntis' || id == 'schulcloud' || id == 'onlyoffice') {
+      return kDesktopUserAgent;
     }
-    
-    // Default mobile User Agent for all other apps
-    return 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0';
+    return kMobileUserAgent;
   }
 
   /// Get app-specific zoom level
