@@ -13,6 +13,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bbzcloud_mobil/core/utils/app_logger.dart';
+import 'package:bbzcloud_mobil/core/utils/web_url_utils.dart';
 import 'package:bbzcloud_mobil/data/services/credential_service.dart';
 import 'package:bbzcloud_mobil/services/injection_scripts.dart';
 import 'package:bbzcloud_mobil/services/download_service.dart';
@@ -60,6 +61,10 @@ class _EmbeddedWebViewWidgetState
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   bool _isInjecting = false;
+  // Tracking, ob wir aktuell den Desktop-UA verwenden (z.B. weil
+  // wir gerade auf OnlyOffice unterwegs sind). Dadurch koennen wir
+  // beim Verlassen der Domain wieder zurueckschalten.
+  bool _desktopUaActive = false;
 
   @override
   void initState() {
@@ -162,6 +167,30 @@ class _EmbeddedWebViewWidgetState
                 },
                 shouldOverrideUrlLoading: (controller, navigationAction) async {
                   final url = navigationAction.request.url;
+
+                  // OnlyOffice: dynamisch UA umschalten, damit der
+                  // Server uns die Desktop-Editor-Variante liefert.
+                  // Wenn wir die OnlyOffice-Domain wieder verlassen,
+                  // zurueck auf den ursprueglichen App-UA wechseln.
+                  if (url != null) {
+                    final urlStr = url.toString();
+                    final wantsDesktop = isOnlyOfficeUrl(urlStr);
+                    if (wantsDesktop != _desktopUaActive) {
+                      _desktopUaActive = wantsDesktop;
+                      final newUa = wantsDesktop
+                          ? kDesktopUserAgent
+                          : _getUserAgentForApp(widget.appId);
+                      try {
+                        await controller.setSettings(
+                          settings: InAppWebViewSettings(userAgent: newUa),
+                        );
+                        logger.info(
+                            'UA switched to ${wantsDesktop ? "desktop (OnlyOffice)" : "default"}');
+                      } catch (e) {
+                        logger.warning('UA switch failed: $e');
+                      }
+                    }
+                  }
 
                   if (widget.appId?.toLowerCase() == 'bbb' && url != null) {
                     if (_isBBBMeetingLink(url.toString())) {
@@ -837,12 +866,14 @@ class _EmbeddedWebViewWidgetState
   }
 
   String _getUserAgentForApp(String? appId) {
-    if (appId?.toLowerCase() == 'webuntis' ||
-        appId?.toLowerCase() == 'schulcloud') {
-      return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    final id = appId?.toLowerCase();
+    // OnlyOffice + WebUntis + SchulCloud bekommen Desktop-UA, sonst
+    // wuerde der Server den Mobile-Editor liefern oder mobile Banner
+    // einblenden.
+    if (id == 'webuntis' || id == 'schulcloud' || id == 'onlyoffice') {
+      return kDesktopUserAgent;
     }
-
-    return 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36 BBZCloud/1.0';
+    return kMobileUserAgent;
   }
 
   int _getInitialScaleForApp(String? appId) {

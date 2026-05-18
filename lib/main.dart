@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:bbzcloud_mobil/core/constants/app_strings.dart';
 import 'package:bbzcloud_mobil/core/theme/app_theme.dart';
+import 'package:bbzcloud_mobil/core/utils/global_keys.dart';
 import 'package:bbzcloud_mobil/data/services/database_service.dart';
 import 'package:bbzcloud_mobil/presentation/providers/settings_provider.dart';
 import 'package:bbzcloud_mobil/presentation/screens/chat_home_screen.dart';
@@ -79,6 +80,10 @@ class BBZCloudApp extends ConsumerWidget {
     return MaterialApp(
       title: AppStrings.appTitle,
       debugShowCheckedModeBanner: false,
+      // Globaler Navigator-Key, damit Services ohne BuildContext
+      // (z.B. ChatBridge.openExternal fuer OnlyOffice-URLs) eine
+      // Route pushen koennen.
+      navigatorKey: rootNavigatorKey,
 
       // Localization
       locale: const Locale('de', 'DE'),
