@@ -31,6 +31,7 @@ import 'package:bbzcloud_mobil/presentation/widgets/app_switcher_overlay.dart';
 import 'package:bbzcloud_mobil/presentation/widgets/draggable_overlay_button.dart';
 import 'package:bbzcloud_mobil/services/app_icon_badge.dart';
 import 'package:bbzcloud_mobil/services/chat_bridge.dart';
+import 'package:bbzcloud_mobil/services/download_service.dart';
 import 'package:bbzcloud_mobil/services/push_service.dart';
 
 class ChatWebView extends ConsumerStatefulWidget {
@@ -152,7 +153,12 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           initialUrlRequest: URLRequest(url: WebUri(AppConfig.chatUrl)),
           initialSettings: InAppWebViewSettings(
             javaScriptEnabled: true,
-            javaScriptCanOpenWindowsAutomatically: false,
+            // true, damit der Chat per window.open() Datei-Previews
+            // aufmachen kann. Wir fangen das via onCreateWindow ab und
+            // oeffnen es in einer in-app WebView (oder bei Downloads
+            // direkt im DownloadService).
+            javaScriptCanOpenWindowsAutomatically: true,
+            supportMultipleWindows: true,
             mediaPlaybackRequiresUserGesture: false,
             useHybridComposition: true,
             // The chat needs its own cookies for session resume.
@@ -165,11 +171,14 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
             // Transparent background prevents the white strip that the
             // platform draws while the React app boots.
             transparentBackground: true,
-            // Auto-grant the React app's getUserMedia() requests so dass
-            // Sprachnachrichten und Voice/Video-Calls direkt funktionieren.
+            // Auto-grant der React-App getUserMedia()-Requests fuer
+            // Sprachnachrichten und Voice/Video-Calls (s. onPermissionRequest).
             iframeAllow: 'camera; microphone',
             iframeAllowFullscreen: true,
             allowsInlineMediaPlayback: true,
+            // Downloads aktivieren - sonst feuert onDownloadStartRequest
+            // gar nicht.
+            useOnDownloadStart: true,
           ),
           onPermissionRequest: (controller, request) async {
             // Bevor wir dem WebView GRANT zurückgeben, müssen die
@@ -181,6 +190,20 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
               resources: request.resources,
               action: PermissionResponseAction.GRANT,
             );
+          },
+          onDownloadStartRequest: (controller, request) async {
+            // Klassische "Content-Disposition: attachment"-Downloads
+            // oder <a href="..." download> Klicks.
+            await _handleDownload(request);
+          },
+          onCreateWindow: (controller, createWindowAction) async {
+            // window.open() / target=_blank: zB. fuer Bild-/PDF-Previews.
+            // Wir oeffnen das in einer in-app WebView, die selber
+            // Downloads + Bilder anzeigen kann - statt im System-Browser.
+            final url = createWindowAction.request.url?.toString();
+            if (url == null || url.isEmpty) return false;
+            _openInAppPreview(url);
+            return true; // wir haben uebernommen
           },
           onWebViewCreated: (controller) {
             _controller = controller;
@@ -380,6 +403,93 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
         logger.warning('Permission request failed for $p: $e');
       }
     }
+  }
+
+  /// Klick auf <a download> oder Datei mit Content-Disposition: attachment.
+  /// Wir nutzen den selben DownloadService wie die EmbeddedWebView.
+  /// Cookies werden mitgegeben, damit das Chat-Session-Cookie greift.
+  Future<void> _handleDownload(DownloadStartRequest request) async {
+    final c = _controller;
+    try {
+      final headers = <String, String>{};
+      if (c != null) {
+        try {
+          final cookies = await CookieManager.instance().getCookies(
+            url: request.url,
+          );
+          if (cookies.isNotEmpty) {
+            headers['Cookie'] = cookies
+                .map((cookie) => '${cookie.name}=${cookie.value}')
+                .join('; ');
+          }
+        } catch (_) {}
+      }
+      String? filename = request.suggestedFilename;
+      if (filename == null ||
+          filename.isEmpty ||
+          filename == 'null' ||
+          filename.endsWith('.bin')) {
+        filename = _filenameFromUrl(request.url.toString());
+      }
+      final dl = DownloadRequest(
+        url: request.url.toString(),
+        filename: filename,
+        headers: headers.isNotEmpty ? headers : null,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Download startet: $filename'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      await DownloadService().downloadFile(
+        context: context,
+        request: dl,
+      );
+    } catch (e, st) {
+      logger.error('Chat-Download fehlgeschlagen', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download fehlgeschlagen: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _filenameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        final last = uri.pathSegments.last;
+        if (last.contains('.') && !last.endsWith('.')) {
+          return Uri.decodeComponent(last);
+        }
+      }
+      if (uri.queryParameters.containsKey('filename')) {
+        return uri.queryParameters['filename']!;
+      }
+    } catch (_) {}
+    return 'download_${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  /// In-app Preview-WebView fuer window.open() / target=_blank.
+  /// Bekommt vom Parent Cookies + User-Agent uebergeben, damit
+  /// authentifizierte Datei-Previews und Downloads funktionieren.
+  void _openInAppPreview(String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WebViewScreen(
+          appId: 'chat_preview',
+          title: 'Vorschau',
+          url: url,
+          requiresAuth: false,
+        ),
+      ),
+    );
   }
 
   Future<void> _applyZoom(int zoom) async {
