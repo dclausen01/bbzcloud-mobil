@@ -53,6 +53,27 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
   bool _tokenPushed = false;
   ThemeMode? _lastTheme;
 
+  // Wird hochgezaehlt, wenn Android den WebView-Renderer-Prozess killt
+  // (OOM im Hintergrund). Der Key-Wechsel erzwingt eine komplette
+  // Neuerstellung der Platform-View — ohne das bliebe dauerhaft eine
+  // weisse Flaeche stehen, bis der User die App komplett neu startet.
+  int _webViewEpoch = 0;
+
+  void _recreateWebView(String reason) {
+    logger.warning('ChatWebView renderer lost ($reason) — recreating WebView');
+    if (!mounted) return;
+    setState(() {
+      _webViewEpoch++;
+      _controller = null;
+      _bridge = null;
+      _tokenPushed = false;
+      _lastTheme = null;
+      _progress = 0;
+      _failed = false;
+      _error = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Theme sync: whenever the resolved ThemeMode changes, forward it to
@@ -150,6 +171,7 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
         fit: StackFit.expand,
         children: [
         InAppWebView(
+          key: ValueKey('chat-webview-$_webViewEpoch'),
           initialUrlRequest: URLRequest(url: WebUri(AppConfig.chatUrl)),
           initialSettings: InAppWebViewSettings(
             javaScriptEnabled: true,
@@ -231,6 +253,12 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
           onLoadStop: (controller, url) async {
             if (mounted) setState(() => _progress = 1);
             await _injectInitialBridgeState();
+          },
+          onRenderProcessGone: (controller, detail) async {
+            // Android killt den WebView-Renderer unter Speicherdruck. Die
+            // bestehende Platform-View ist danach unbrauchbar (weisser
+            // Screen); nur eine Neuerstellung stellt den Chat wieder her.
+            _recreateWebView('renderProcessGone didCrash=${detail.didCrash}');
           },
           onReceivedError: (controller, request, error) {
             logger.warning(
@@ -724,15 +752,9 @@ class _ChatWebViewState extends ConsumerState<ChatWebView> {
   }
 
   void _retry() {
-    setState(() {
-      _failed = false;
-      _error = null;
-      _progress = 0;
-      _tokenPushed = false;
-    });
-    _controller?.loadUrl(
-      urlRequest: URLRequest(url: WebUri(AppConfig.chatUrl)),
-    );
+    // Komplette Neuerstellung statt loadUrl(): funktioniert auch dann,
+    // wenn der Renderer-Prozess tot ist und der Controller ins Leere zeigt.
+    _recreateWebView('user retry');
   }
 }
 
