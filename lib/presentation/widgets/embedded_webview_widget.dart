@@ -66,6 +66,26 @@ class _EmbeddedWebViewWidgetState
   // beim Verlassen der Domain wieder zurueckschalten.
   bool _desktopUaActive = false;
 
+  // Wird hochgezaehlt, wenn Android den WebView-Renderer-Prozess killt
+  // (OOM im Hintergrund). Der Key-Wechsel erzwingt eine Neuerstellung der
+  // Platform-View — sonst bleibt dauerhaft eine weisse Flaeche stehen.
+  int _webViewEpoch = 0;
+
+  void _recreateWebView(String reason) {
+    logger.warning(
+        'Embedded WebView (${widget.appId ?? widget.url}) renderer lost ($reason) — recreating');
+    if (!mounted) return;
+    setState(() {
+      _webViewEpoch++;
+      _webViewController = null;
+      _loadingProgress = 0;
+      _webuntisPhase1Done = false;
+      _webuntisLoginTriggered = false;
+      _isInjecting = false;
+      _desktopUaActive = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -115,9 +135,15 @@ class _EmbeddedWebViewWidgetState
           child: Stack(
             children: [
               InAppWebView(
+                key: ValueKey(
+                    'embedded-webview-${widget.appId ?? widget.url}-$_webViewEpoch'),
                 initialUrlRequest: URLRequest(
                   url: WebUri(widget.url),
                 ),
+                onRenderProcessGone: (controller, detail) async {
+                  _recreateWebView(
+                      'renderProcessGone didCrash=${detail.didCrash}');
+                },
                 initialSettings: InAppWebViewSettings(
                   javaScriptEnabled: true,
                   javaScriptCanOpenWindowsAutomatically: true,
